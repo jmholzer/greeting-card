@@ -1,0 +1,12 @@
+.container {
+    display: grid;
+    height: 100%;
+    width: 100%;
+    place-items: center;
+    background: #e6c840;
+    position: fixed;
+}
+
+.container * {
+    transform-style: preserve-3d;
+}
