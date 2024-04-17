@@ -6,10 +6,10 @@ import styles from './styles.module.css';
 import Card from '@/components/Card'
 
 export default function Envelope() {
-  const [animate, setAnimate] = useState(false);
+  const [runAnimation, setRunAnimation] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  const envelopeAnimation = animate
+  const envelopeAnimation = runAnimation
     ? {
       y: "200%",
       transition: {
@@ -40,7 +40,7 @@ export default function Envelope() {
           initial={{ y: 0, scale: 1 }}
           animate={envelopeAnimation}
           style={{ zIndex: 3 }}
-          onClick={() => setAnimate(true)}
+          onClick={() => setRunAnimation(true)}
           onAnimationComplete={() => setIsOpen(true)}
         />
       </div>

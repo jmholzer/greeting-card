@@ -1,6 +1,7 @@
 'use client';
 import { motion, useSpring } from 'framer-motion';
 import React, { useState, useRef, useEffect } from "react";
+import Image from 'next/image';
 import styles from './styles.module.css';
 
 interface CardProps {
@@ -23,22 +24,24 @@ export default function Card({ isEnvelopeOpen }: CardProps) {
 
   const [rotateXaxis, setRotateXaxis] = useState(0)
   const [rotateYaxis, setRotateYaxis] = useState(0)
-  const ref = useRef(null)
+  const ref = useRef<HTMLDivElement>(null);
 
-  const handleMouseMove = (event) => {
-    const element = ref.current
-    const elementRect = element.getBoundingClientRect()
-    const elementWidth = elementRect.width
-    const elementHeight = elementRect.height
-    const elementCenterX = elementWidth / 2
-    const elementCenterY = elementHeight / 2
-    const mouseX = event.clientY - elementRect.y - elementCenterY
-    const mouseY = event.clientX - elementRect.x - elementCenterX
-    const degreeX = (mouseX / elementWidth) * 20 //The number is the rotation factor
-    const degreeY = (mouseY / elementHeight) * 20 //The number is the rotation factor
-    setRotateXaxis(degreeX)
-    setRotateYaxis(degreeY)
-  }
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    const element = ref.current;
+    if (element) {
+      const elementRect = element.getBoundingClientRect();
+      const elementWidth = elementRect.width;
+      const elementHeight = elementRect.height;
+      const elementCenterX = elementWidth / 2;
+      const elementCenterY = elementHeight / 2;
+      const mouseX = event.clientY - elementRect.y - elementCenterY;
+      const mouseY = event.clientX - elementRect.x - elementCenterX;
+      const degreeX = (mouseX / elementWidth) * 20; //The number is the rotation factor
+      const degreeY = (mouseY / elementHeight) * 20; //The number is the rotation factor
+      setRotateXaxis(degreeX);
+      setRotateYaxis(degreeY);
+    }
+  };
 
   const handleMouseEnd = () => {
     setRotateXaxis(0)
@@ -57,14 +60,10 @@ export default function Card({ isEnvelopeOpen }: CardProps) {
     <>
       {!isEnvelopeOpen ? (
         <div className={styles.cardContainer}>
-          <div className={styles.cardFront} />
+          <Image src="/front.jpg" alt="Card Front" className={styles.cardFront} fill />
         </div>
       ) : (
-        <motion.div
-          onClick={handleClick}
-          transition={spring}
-          className={styles.cardContainer}
-        >
+        <motion.div onClick={handleClick} transition={spring} className={styles.cardContainer}>
           <motion.div
             ref={ref}
             whileHover={{ scale: 1.1 }} //Change the scale of zooming in when hovering
@@ -96,7 +95,7 @@ export default function Card({ isEnvelopeOpen }: CardProps) {
                   position: "absolute",
                 }}
               >
-                <div className={styles.cardFront} />
+                <Image src="/front.jpg" alt="Card Front" className={styles.cardFront} fill />
               </motion.div>
               <motion.div
                 initial={{ rotateY: 180 }}
