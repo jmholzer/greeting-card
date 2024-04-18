@@ -1,4 +1,5 @@
 'use client';
+
 import { motion, useSpring } from 'framer-motion';
 import React, { useState, useRef, useEffect } from "react";
 import Image from 'next/image';
@@ -17,13 +18,15 @@ const spring = {
 
 export default function Card({ isEnvelopeOpen }: CardProps) {
   const [isFlipped, setIsFlipped] = useState(false)
-
   const handleClick = () => {
     setIsFlipped((prevState) => !prevState)
   }
 
   const [rotateXaxis, setRotateXaxis] = useState(0)
   const [rotateYaxis, setRotateYaxis] = useState(0)
+  const [zoomFactor, setZoomFactor] = useState(1)
+  const [zoomOrigin, setZoomOrigin] = useState("center center")
+
   const ref = useRef<HTMLDivElement>(null);
 
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -36,17 +39,49 @@ export default function Card({ isEnvelopeOpen }: CardProps) {
       const elementCenterY = elementHeight / 2;
       const mouseX = event.clientY - elementRect.y - elementCenterY;
       const mouseY = event.clientX - elementRect.x - elementCenterX;
-      const degreeX = (mouseX / elementWidth) * 20; //The number is the rotation factor
-      const degreeY = (mouseY / elementHeight) * 20; //The number is the rotation factor
+      const degreeX = (mouseX / elementWidth) * 10; //The number is the rotation factor
+      const degreeY = (mouseY / elementHeight) * 10; //The number is the rotation factor
       setRotateXaxis(degreeX);
       setRotateYaxis(degreeY);
+
+      if (isFlipped) {
+        const mouseXPercentage = (event.clientX - elementRect.x) / elementWidth;
+        const mouseYPercentage = (event.clientY - elementRect.y) / elementHeight;
+
+        setZoomFactor(2);
+        setZoomOrigin(`${mouseXPercentage * 100}% ${mouseYPercentage * 100}%`);
+      } else {
+        setZoomFactor(1);
+        setZoomOrigin("center center");
+      }
     }
   };
 
-  const handleMouseEnd = () => {
-    setRotateXaxis(0)
-    setRotateYaxis(0)
-  }
+  const BUFFER_SIZE = 50;
+
+  const handleMouseEnd = (event: React.MouseEvent<HTMLDivElement>) => {
+    const element = ref.current;
+    if (element) {
+      const elementRect = element.getBoundingClientRect();
+      const mouseX = event.clientX;
+      const mouseY = event.clientY;
+
+      if (
+        mouseX >= elementRect.left - BUFFER_SIZE &&
+        mouseX <= elementRect.right + BUFFER_SIZE &&
+        mouseY >= elementRect.top - BUFFER_SIZE &&
+        mouseY <= elementRect.bottom + BUFFER_SIZE
+      ) {
+        // Mouse is within the buffer area, maintain the rotation effect
+        return;
+      }
+
+      setRotateXaxis(0);
+      setRotateYaxis(0);
+      setZoomFactor(1);
+      setZoomOrigin("center center");
+    }
+  };
 
   const dx = useSpring(0, spring)
   const dy = useSpring(0, spring)
@@ -66,7 +101,7 @@ export default function Card({ isEnvelopeOpen }: CardProps) {
         <motion.div onClick={handleClick} transition={spring} className={styles.cardContainer}>
           <motion.div
             ref={ref}
-            whileHover={{ scale: 1.1 }} //Change the scale of zooming in when hovering
+            whileHover={{ scale: zoomFactor }}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseEnd}
             transition={spring}
@@ -75,6 +110,7 @@ export default function Card({ isEnvelopeOpen }: CardProps) {
               height: "100%",
               rotateX: dx,
               rotateY: dy,
+              transformOrigin: zoomOrigin,
             }}
           >
             <div
