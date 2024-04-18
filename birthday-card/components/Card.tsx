@@ -19,6 +19,8 @@ const spring = {
 export default function Card({ isEnvelopeOpen }: CardProps) {
   const [isFlipped, setIsFlipped] = useState(false)
   const handleClick = () => {
+    setZoomFactor(1);
+    setZoomOrigin("center center");
     setIsFlipped((prevState) => !prevState)
   }
 
@@ -57,30 +59,11 @@ export default function Card({ isEnvelopeOpen }: CardProps) {
     }
   };
 
-  const BUFFER_SIZE = 50;
-
   const handleMouseEnd = (event: React.MouseEvent<HTMLDivElement>) => {
-    const element = ref.current;
-    if (element) {
-      const elementRect = element.getBoundingClientRect();
-      const mouseX = event.clientX;
-      const mouseY = event.clientY;
-
-      if (
-        mouseX >= elementRect.left - BUFFER_SIZE &&
-        mouseX <= elementRect.right + BUFFER_SIZE &&
-        mouseY >= elementRect.top - BUFFER_SIZE &&
-        mouseY <= elementRect.bottom + BUFFER_SIZE
-      ) {
-        // Mouse is within the buffer area, maintain the rotation effect
-        return;
-      }
-
+    setTimeout(() => {
       setRotateXaxis(0);
       setRotateYaxis(0);
-      setZoomFactor(1);
-      setZoomOrigin("center center");
-    }
+    }, 1000);
   };
 
   const dx = useSpring(0, spring)
