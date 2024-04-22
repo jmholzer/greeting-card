@@ -4,6 +4,7 @@ import { motion, useSpring } from 'framer-motion';
 import React, { useState, useRef, useEffect } from "react";
 import Image from 'next/image';
 import styles from './styles.module.css';
+import { Rnd } from 'react-rnd';
 
 interface CardProps {
   isEnvelopeOpen: boolean;
@@ -127,7 +128,9 @@ export default function Card({ isEnvelopeOpen }: CardProps) {
                   position: "absolute",
                 }}
               >
-                <div className={styles.cardBack} />
+                <div className={styles.cardBack}>
+                  test
+                </div>
               </motion.div>
             </div>
           </motion.div>

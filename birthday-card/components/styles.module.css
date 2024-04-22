@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400..700&family=Lobster&family=Mr+Dafoe&family=Parisienne&display=swap');
+
 .envelopeContainer {
     position: relative;
     display: grid;
@@ -27,18 +29,9 @@
     width: 100%;
     height: 100%;
     z-index: 3;
-    background: linear-gradient(-30deg,
-            transparent 50%,
-            #ccc calc(50% + 1px),
-            transparent calc(50% + 1px)),
-        linear-gradient(30deg,
-            #fefefe 50%,
-            #ccc calc(50% + 1px),
-            transparent calc(50% + 1px)),
-        linear-gradient(-30deg,
-            #fefefe 50%,
-            #ccc calc(50% + 1px),
-            transparent calc(50% + 1px));
+    background: linear-gradient(-30deg, transparent 50%, #ccc calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(30deg, #fefefe 50%, #ccc calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(-30deg, #fefefe 50%, #ccc calc(50% + 1px), transparent calc(50% + 1px));
     border-radius: 3%;
 }
 
@@ -61,6 +54,8 @@
     position: absolute;
     perspective: 1200px;
     transform-style: preserve-3d;
+    color: #000000;
+    /* Add this line to set the default text color to black */
 }
 
 .cardFront {
@@ -77,4 +72,7 @@
     background: #ffffff;
     backface-visibility: hidden;
     position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
