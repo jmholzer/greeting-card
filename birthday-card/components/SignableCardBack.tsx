@@ -5,7 +5,7 @@ import { Rnd } from 'react-rnd';
 
 export default function SignableCardBack() {
   const [text, setText] = useState('');
-  const [fontSize, setFontSize] = useState(16);
+  const [fontSize, setFontSize] = useState(20);
   const [fontFamily, setFontFamily] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -20,7 +20,17 @@ export default function SignableCardBack() {
   }, []);
 
   const handleFontSizeChange = (e) => {
-    setFontSize(parseInt(e.target.value));
+    const newFontSize = parseInt(e.target.value);
+    const textarea = textareaRef.current;
+    const rndElement = rndRef.current;
+
+    if (
+      newFontSize >= 14 &&
+      newFontSize <= 26 &&
+      (textarea.scrollHeight <= rndElement.resizableElement.current.offsetHeight || newFontSize < fontSize)
+    ) {
+      setFontSize(newFontSize);
+    }
   };
 
   const handleFontFamilyChange = (font) => {
@@ -155,8 +165,8 @@ export default function SignableCardBack() {
               type="number"
               id="fontSize"
               value={fontSize}
-              min={8}
-              max={32}
+              min={14}
+              max={26}
               onChange={handleFontSizeChange}
               style={{
                 appearance: 'textfield',
