@@ -122,7 +122,6 @@ export default function SignableCardBack() {
                 {text}
               </div>
             ) : (
-              // @ts-ignore
               <Rnd
                 ref={rndRef}
                 bounds="parent"
