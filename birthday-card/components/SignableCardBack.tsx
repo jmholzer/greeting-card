@@ -10,10 +10,10 @@ export default function SignableCardBack() {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [rndPosition, setRndPosition] = useState({ x: 0, y: 0, width: 200, height: 100 });
-  const dropdownRef = useRef<HTMLDivElement>(null);;
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const rndRef = useRef<Rnd>(null);
-  const cardBackRef = useRef<HTMLDivElement>(null);;
+  const cardBackRef = useRef<HTMLDivElement>(null);
 
   const fonts = ['Dancing Script', 'Lobster', 'Mr Dafoe', 'Parisienne'];
 
@@ -28,7 +28,7 @@ export default function SignableCardBack() {
     const rndElement = rndRef.current;
 
     if (!textarea || !rndElement || !rndElement.resizableElement.current) {
-      return
+      return;
     }
 
     if (
@@ -59,7 +59,7 @@ export default function SignableCardBack() {
     if (!dropdown.contains(e.target as Node)) {
       setIsOpen(false);
     }
-  };;
+  };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const textarea = textareaRef.current;
@@ -74,12 +74,16 @@ export default function SignableCardBack() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (isSaved) {
+      return;
+    }
+
     const cardBackElement = cardBackRef.current;
     const rndElement = rndRef?.current?.resizableElement.current;
 
     if (!rndElement || !cardBackElement) {
-      return
+      return;
     }
 
     const { left, top, width, height } = rndElement.getBoundingClientRect();
@@ -88,9 +92,32 @@ export default function SignableCardBack() {
     const x = left - cardBackLeft + 2; // TODO: figure out why the magic number 2 is needed
     const y = top - cardBackTop + 2;
 
-    setRndPosition({ x, y, width, height });
-    setIsSaved(true);
-  };
+    const messageData = {
+      text,
+      fontSize,
+      fontFamily,
+      position: { x, y, width, height },
+    };
+
+    try {
+      const response = await fetch('/message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(messageData),
+      });
+
+      if (response.ok) {
+        setRndPosition({ x, y, width, height });
+        setIsSaved(true);
+      } else {
+        console.error('Failed to save message');
+      }
+    } catch (error) {
+      console.error('Error saving message:', error);
+    }
+  };;
 
   useEffect(() => {
     document.addEventListener('click', handleClickOutside);
@@ -100,23 +127,20 @@ export default function SignableCardBack() {
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className={styles.flexContainer}>
       <div className={styles.envelopeContainer}>
         <div className={styles.cardContainer}>
           <div className={styles.cardBack} ref={cardBackRef}>
             {isSaved ? (
               <div
+                className={styles.savedTextContainer}
                 style={{
-                  position: 'absolute',
                   top: rndPosition.y,
                   left: rndPosition.x,
                   width: rndPosition.width,
                   height: rndPosition.height,
                   fontSize: `${fontSize}px`,
                   fontFamily: fontFamily,
-                  userSelect: 'text',
-                  overflow: 'hidden',
-                  boxSizing: 'border-box',
                 }}
               >
                 {text}
@@ -130,83 +154,37 @@ export default function SignableCardBack() {
                 minHeight={50}
                 maxWidth={400}
                 maxHeight={200}
-                style={{ border: '2px dashed #ccc', borderRadius: '4px' }}
+                className={styles.rndContainer}
               >
-                <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                <div className={styles.textareaContainer}>
                   <textarea
                     ref={textareaRef}
                     value={text}
                     onChange={handleTextChange}
+                    className={styles.textarea}
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      resize: 'none',
-                      border: 'none',
-                      outline: 'none',
                       fontSize: `${fontSize}px`,
                       fontFamily: fontFamily,
-                      userSelect: 'text',
-                      overflow: 'hidden',
-                      boxSizing: 'border-box',
                     }}
                   />
                 </div>
               </Rnd>
             )}
           </div>
-          <div
-            style={{
-              backgroundColor: '#495057',
-              padding: '8px',
-              borderRadius: '0 0 4px 4px',
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-              width: '100%',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          >
-            <div ref={dropdownRef} style={{ position: 'relative', marginRight: '8px' }}>
-              <div
-                onClick={toggleDropdown}
-                style={{
-                  padding: '4px',
-                  border: 'none',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
-                  fontSize: '16px',
-                  cursor: 'pointer',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: '150px',
-                }}
-              >
+          <div className={styles.bottomBar}>
+            <div ref={dropdownRef} className={styles.dropdownContainer}>
+              <div onClick={toggleDropdown} className={styles.dropdownButton}>
                 <span style={{ fontFamily: fontFamily }}>Happy Birthday!</span>
               </div>
               {isOpen && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '100%',
-                    left: 0,
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    padding: '8px',
-                    zIndex: 1,
-                    minWidth: '150px',
-                  }}
-                >
+                <div className={styles.dropdownMenu}>
                   {fonts.map((font) => (
                     <div
                       key={font}
                       onClick={() => handleFontFamilyChange(font)}
+                      className={styles.dropdownItem}
                       style={{
                         fontFamily: `'${font}', cursive`,
-                        padding: '4px',
-                        cursor: 'pointer',
                       }}
                     >
                       Happy Birthday!
@@ -222,34 +200,12 @@ export default function SignableCardBack() {
               min={14}
               max={26}
               onChange={handleFontSizeChange}
-              style={{
-                appearance: 'textfield',
-                WebkitAppearance: 'none',
-                MozAppearance: 'textfield',
-                margin: 0,
-                width: '60px',
-                textAlign: 'center',
-                border: 'none',
-                backgroundColor: '#ffffff',
-                color: '#000000',
-                fontSize: '16px',
-                opacity: 1,
-                height: '32px',
-              }}
+              className={styles.fontSizeInput}
             />
             <button
               onClick={handleSave}
               disabled={isSaved}
-              style={{
-                marginLeft: '8px',
-                padding: '4px 8px',
-                border: 'none',
-                backgroundColor: isSaved ? '#ccc' : '#007bff',
-                color: '#ffffff',
-                fontSize: '16px',
-                cursor: isSaved ? 'default' : 'pointer',
-                borderRadius: '4px',
-              }}
+              className={`${styles.saveButton} ${isSaved ? styles.saveButtonDisabled : ''}`}
             >
               Save
             </button>
