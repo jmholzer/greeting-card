@@ -1,13 +1,16 @@
+import { NextRequest } from 'next/server';
 
 import styles from '../page.module.css';
+import SignableCardBack from '@/components/SignableCardBack';
 
-import SignableCardBack from '@/components/SignableCardBack'
+import { getMessages } from '@/utils/messages'
 
-export default function Home() {
+export default async function Home(request: NextRequest) {
+  const messages = await getMessages();
 
   return (
     <div className={styles.container}>
-      <SignableCardBack />
+      <SignableCardBack messages={messages} />
     </div>
   );
 }

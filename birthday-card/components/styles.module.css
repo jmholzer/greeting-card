@@ -6,18 +6,9 @@
     place-items: center;
 }
 
-@media (orientation: portrait) {
-    .envelopeContainer {
-        width: 90vw;
-        height: 63.8vw;
-    }
-}
-
-@media (orientation: landscape) {
-    .envelopeContainer {
-        width: 100vh;
-        height: 70.9vh;
-    }
+.envelopeContainer {
+    width: 768px;
+    height: 607px;
 }
 
 .envelopeFront {
@@ -103,6 +94,7 @@
     user-select: text;
     overflow: hidden;
     box-sizing: border-box;
+    background: transparent;
 }
 
 .bottomBar {

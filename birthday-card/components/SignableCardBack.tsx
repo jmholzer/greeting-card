@@ -3,13 +3,19 @@ import React, { useState, useEffect, useRef } from "react";
 import styles from './styles.module.css';
 import { Rnd } from 'react-rnd';
 
-export default function SignableCardBack() {
+import { Message } from '@/utils/messages';
+
+interface SignableCardBackProps {
+  messages: Message[];
+}
+
+export default function SignableCardBack({ messages }: SignableCardBackProps) {
   const [text, setText] = useState('');
   const [fontSize, setFontSize] = useState(20);
   const [fontFamily, setFontFamily] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const [rndPosition, setRndPosition] = useState({ x: 0, y: 0, width: 200, height: 100 });
+  const [rndPosition, setRndPosition] = useState({ x: 20, y: 20, width: 200, height: 100 });
   const dropdownRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const rndRef = useRef<Rnd>(null);
@@ -115,9 +121,9 @@ export default function SignableCardBack() {
         console.error('Failed to save message');
       }
     } catch (error) {
-      console.error('Error saving message:', error);
+      console.error('Failed to save message', error)
     }
-  };;
+  };
 
   useEffect(() => {
     document.addEventListener('click', handleClickOutside);
@@ -131,6 +137,22 @@ export default function SignableCardBack() {
       <div className={styles.envelopeContainer}>
         <div className={styles.cardContainer}>
           <div className={styles.cardBack} ref={cardBackRef}>
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={styles.savedTextContainer}
+                style={{
+                  top: message.positionY,
+                  left: message.positionX,
+                  width: message.width,
+                  height: message.height,
+                  fontSize: message.fontSize,
+                  fontFamily: message.fontFamily,
+                }}
+              >
+                {message.text}
+              </div>
+            ))}
             {isSaved ? (
               <div
                 className={styles.savedTextContainer}

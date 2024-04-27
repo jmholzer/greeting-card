@@ -4,8 +4,13 @@ import { useState } from 'react';
 import styles from './styles.module.css';
 
 import Card from '@/components/Card'
+import { Message } from '@/utils/messages';
 
-export default function Envelope() {
+interface EnvelopedCardProps {
+  messages: Message[];
+}
+
+export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
   const [runAnimation, setRunAnimation] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -31,7 +36,7 @@ export default function Envelope() {
         style={{ zIndex: 1 }}
 
       />
-      <Card isEnvelopeOpen={isOpen} />
+      <Card isEnvelopeOpen={isOpen} messages={messages} />
       <motion.div
         key="envelopeFront"
         id="envelopeFront"

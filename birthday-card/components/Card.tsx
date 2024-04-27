@@ -4,20 +4,21 @@ import { motion, useSpring } from 'framer-motion';
 import React, { useState, useRef, useEffect } from "react";
 import Image from 'next/image';
 import styles from './styles.module.css';
-import { Rnd } from 'react-rnd';
+
+import { Message } from '@/utils/messages';
 
 interface CardProps {
   isEnvelopeOpen: boolean;
+  messages: Message[];
 }
 
-//Spring animation parameters
 const spring = {
   type: "spring",
   stiffness: 300,
   damping: 40,
 }
 
-export default function Card({ isEnvelopeOpen }: CardProps) {
+export default function Card({ isEnvelopeOpen, messages }: CardProps) {
   const [isFlipped, setIsFlipped] = useState(false)
   const handleClick = () => {
     setZoomFactor(1);
@@ -51,7 +52,7 @@ export default function Card({ isEnvelopeOpen }: CardProps) {
         const mouseXPercentage = (event.clientX - elementRect.x) / elementWidth;
         const mouseYPercentage = (event.clientY - elementRect.y) / elementHeight;
 
-        setZoomFactor(2);
+        setZoomFactor(1.15);
         setZoomOrigin(`${mouseXPercentage * 100}% ${mouseYPercentage * 100}%`);
       } else {
         setZoomFactor(1);
@@ -129,7 +130,22 @@ export default function Card({ isEnvelopeOpen }: CardProps) {
                 }}
               >
                 <div className={styles.cardBack}>
-                  test
+                  {messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={styles.savedTextContainer}
+                      style={{
+                        top: message.positionY,
+                        left: message.positionX,
+                        width: message.width,
+                        height: message.height,
+                        fontSize: message.fontSize,
+                        fontFamily: message.fontFamily,
+                      }}
+                    >
+                      {message.text}
+                    </div>
+                  ))}
                 </div>
               </motion.div>
             </div>
