@@ -14,7 +14,7 @@ export interface Message {
 export async function getMessages(): Promise<Message[]> {
   console.log
   try {
-    const response = await fetch(`${process.env.HOST}/messages`, { cache: 'no-store' });
+    const response = await fetch(`${process.env.HOST}/api/messages`, { cache: 'no-store' });
     const data = await response.json();
     return data;
   } catch (error) {

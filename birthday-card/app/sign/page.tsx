@@ -1,11 +1,10 @@
-import { NextRequest } from 'next/server';
 
 import styles from '../page.module.css';
 import SignableCardBack from '@/components/SignableCardBack';
 
 import { getMessages } from '@/utils/messages'
 
-export default async function Home(request: NextRequest) {
+export default async function Home() {
   const messages = await getMessages();
 
   return (

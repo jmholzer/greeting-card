@@ -106,7 +106,7 @@ export default function SignableCardBack({ messages }: SignableCardBackProps) {
     };
 
     try {
-      const response = await fetch('/message', {
+      const response = await fetch('/api/message', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
