@@ -122,3 +122,45 @@
 .envelopeIcon {
     font-size: 20px;
 }
+
+.loader {
+    width: 48px;
+    height: 48px;
+    border: 5px solid #000;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
+}
+
+@keyframes rotation {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.successIcon {
+    font-size: 48px;
+    color: green;
+    animation: fadeOut 10s ease-in-out forwards;
+}
+
+.failureMessage {
+    font-size: 18px;
+    color: red;
+}
+
+@keyframes fadeOut {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}

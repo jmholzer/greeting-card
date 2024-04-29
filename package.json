@@ -15,6 +15,7 @@
     "auto-text-size": "^0.2.3",
     "canvas": "^2.11.2",
     "d3-cloud": "^1.2.7",
+    "formik": "^2.4.6",
     "framer-motion": "^11.0.28",
     "next": "14.2.1",
     "react": "^18",
