@@ -3,11 +3,11 @@
 import { motion, useSpring } from 'framer-motion';
 import React, { useState, useRef, useEffect } from "react";
 import Image from 'next/image';
+import { AutoTextSize } from 'auto-text-size'
 import styles from './styles.module.css';
 
-import { AutoTextSize } from 'auto-text-size'
-
 import { Message } from '@/utils/messages';
+import { randomGridPositions } from '@/utils/grid';
 
 interface CardProps {
   isEnvelopeOpen: boolean;
@@ -22,7 +22,13 @@ const spring = {
 
 const rotationFactor = 5;
 
+const gridRows = 4;
+const gridCols = 4;
+const messagePositions = randomGridPositions(gridRows, gridCols)
+
 export default function Card({ isEnvelopeOpen, messages }: CardProps) {
+  messages = messages.slice(0, gridRows * gridCols)
+
   const [isFlipped, setIsFlipped] = useState(false)
   const handleClick = () => {
     setZoomFactor(1);
@@ -141,6 +147,8 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
                         className={styles.message}
                         style={{
                           fontFamily: message.fontFamily,
+                          gridRow: `${messagePositions[index][0]}`,
+                          gridColumn: `${messagePositions[index][1]}`
                         }}
                       >
                         <AutoTextSize mode='box' minFontSizePx={2}>{message.text}</AutoTextSize>
@@ -150,10 +158,9 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
                 </div>
               </motion.div>
             </div>
-          </motion.div >
-        </motion.div >
-      )
-      }
+          </motion.div>
+        </motion.div>
+      )}
     </>
   );
 }
