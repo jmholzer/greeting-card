@@ -1,0 +1,103 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400..700&family=Lobster&family=Mr+Dafoe&family=Parisienne&display=swap');
+
+.envelopeContainer {
+    position: relative;
+    display: grid;
+    place-items: center;
+}
+
+@media (orientation: portrait) {
+    .envelopeContainer {
+        width: 90vw;
+        height: 63.8vw;
+    }
+}
+
+@media (orientation: landscape) {
+    .envelopeContainer {
+        width: 100vh;
+        height: 70.9vh;
+    }
+}
+
+.envelopeFront {
+    background: #efefef;
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.25));
+    cursor: pointer;
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 3;
+    background: linear-gradient(-30deg, transparent 50%, #ccc calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(30deg, #fefefe 50%, #ccc calc(50% + 1px), transparent calc(50% + 1px)),
+        linear-gradient(-30deg, #fefefe 50%, #ccc calc(50% + 1px), transparent calc(50% + 1px));
+    border-radius: 3%;
+}
+
+.envelopeBack {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    background: #efefef;
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.25));
+    cursor: pointer;
+    backface-visibility: visible;
+    border-radius: 3%;
+}
+
+.cardContainer {
+    width: 95%;
+    height: 95%;
+    z-index: 2;
+    position: absolute;
+    perspective: 1200px;
+    transform-style: preserve-3d;
+    color: #000000;
+}
+
+.cardFront {
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    backface-visibility: hidden;
+    position: relative;
+}
+
+.cardBack {
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+    backface-visibility: hidden;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.messages {
+    width: 90%;
+    height: 90%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+    gap: 10px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    backface-visibility: hidden;
+}
+
+.message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    word-wrap: break-word;
+    padding: 5px;
+    backface-visibility: hidden;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

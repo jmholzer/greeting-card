@@ -13,12 +13,7 @@ datasource db {
 model Message {
   id        Int      @id @default(autoincrement())
   text      String
-  fontSize  Int
   fontFamily String
-  positionX Int
-  positionY Int
-  width     Int
-  height    Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

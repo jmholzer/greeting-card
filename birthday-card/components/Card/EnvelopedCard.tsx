@@ -3,7 +3,7 @@ import { motion, easeIn, reverseEasing } from 'framer-motion';
 import { useState } from 'react';
 import styles from './styles.module.css';
 
-import Card from '@/components/Card'
+import Card from '@/components/Card/Card'
 import { Message } from '@/utils/messages';
 
 interface EnvelopedCardProps {

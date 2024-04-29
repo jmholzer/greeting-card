@@ -5,6 +5,8 @@ import React, { useState, useRef, useEffect } from "react";
 import Image from 'next/image';
 import styles from './styles.module.css';
 
+import { AutoTextSize } from 'auto-text-size'
+
 import { Message } from '@/utils/messages';
 
 interface CardProps {
@@ -17,6 +19,8 @@ const spring = {
   stiffness: 300,
   damping: 40,
 }
+
+const rotationFactor = 5;
 
 export default function Card({ isEnvelopeOpen, messages }: CardProps) {
   const [isFlipped, setIsFlipped] = useState(false)
@@ -43,8 +47,8 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
       const elementCenterY = elementHeight / 2;
       const mouseX = event.clientY - elementRect.y - elementCenterY;
       const mouseY = event.clientX - elementRect.x - elementCenterX;
-      const degreeX = (mouseX / elementWidth) * 10; //The number is the rotation factor
-      const degreeY = (mouseY / elementHeight) * 10; //The number is the rotation factor
+      const degreeX = (mouseX / elementWidth) * rotationFactor; //The number is the rotation factor
+      const degreeY = (mouseY / elementHeight) * rotationFactor; //The number is the rotation factor
       setRotateXaxis(degreeX);
       setRotateYaxis(degreeY);
 
@@ -52,7 +56,7 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
         const mouseXPercentage = (event.clientX - elementRect.x) / elementWidth;
         const mouseYPercentage = (event.clientY - elementRect.y) / elementHeight;
 
-        setZoomFactor(1.15);
+        setZoomFactor(1.2);
         setZoomOrigin(`${mouseXPercentage * 100}% ${mouseYPercentage * 100}%`);
       } else {
         setZoomFactor(1);
@@ -130,28 +134,26 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
                 }}
               >
                 <div className={styles.cardBack}>
-                  {messages.map((message, index) => (
-                    <div
-                      key={index}
-                      className={styles.savedTextContainer}
-                      style={{
-                        top: message.positionY,
-                        left: message.positionX,
-                        width: message.width,
-                        height: message.height,
-                        fontSize: message.fontSize,
-                        fontFamily: message.fontFamily,
-                      }}
-                    >
-                      {message.text}
-                    </div>
-                  ))}
+                  <div className={styles.messages}>
+                    {messages.slice(0, 16).map((message, index) => (
+                      <div
+                        key={index}
+                        className={styles.message}
+                        style={{
+                          fontFamily: message.fontFamily,
+                        }}
+                      >
+                        <AutoTextSize mode='box' minFontSizePx={2}>{message.text}</AutoTextSize>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
+          </motion.div >
+        </motion.div >
+      )
+      }
     </>
   );
 }

@@ -1,0 +1,124 @@
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.textAreaWrapper {
+    height: 30vh;
+    position: relative;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+@media (orientation: portrait) {
+    .textAreaWrapper {
+        width: 90vw;
+    }
+}
+
+@media (orientation: landscape) {
+    .textAreaWrapper {
+        width: 30vw;
+    }
+}
+
+.messageField {
+    width: 100%;
+    height: calc(100% - 3rem);
+    border: none;
+    border-top-left-radius: 3%;
+    border-top-right-radius: 3%;
+    padding: 20px;
+    resize: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    overflow: hidden;
+    color: black;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: pre-wrap;
+    max-width: 100%;
+    box-sizing: border-box;
+    align-items: center;
+    font-size: 25px;
+}
+
+.bottomBar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    background-color: #f5f5f5;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+.characterCount {
+    font-size: 14px;
+    color: #888;
+}
+
+.dropdownContainer {
+    position: relative;
+}
+
+.dropdownButton {
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.dropdownMenu {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background-color: #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 10px;
+    z-index: 1;
+}
+
+.dropdownItem {
+    cursor: pointer;
+    padding: 5px;
+}
+
+.submitButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f5f5;
+    color: #333;
+    border: none;
+    padding: 12px 24px;
+    font-size: 18px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 20px;
+    width: 200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.submitButton:hover {
+    background-color: #eaeaea;
+}
+
+.submitButton span {
+    margin-right: 8px;
+}
+
+.envelopeIcon {
+    font-size: 20px;
+}

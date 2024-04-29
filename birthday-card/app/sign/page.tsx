@@ -1,15 +1,10 @@
-
 import styles from '../page.module.css';
-import SignableCardBack from '@/components/SignableCardBack';
-
-import { getMessages } from '@/utils/messages'
+import SignForm from '@/components/SignForm/SignForm';
 
 export default async function Home() {
-  const messages = await getMessages();
-
   return (
     <div className={styles.container}>
-      <SignableCardBack messages={messages} />
+      <SignForm />
     </div>
   );
 }

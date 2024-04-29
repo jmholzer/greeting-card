@@ -1,12 +1,7 @@
 export interface Message {
   id: number;
   text: string;
-  fontSize: number;
   fontFamily: string;
-  positionX: number;
-  positionY: number;
-  width: number;
-  height: number;
   createdAt: string;
   updatedAt: string;
 }

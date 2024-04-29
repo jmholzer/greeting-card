@@ -1,6 +1,6 @@
 import styles from './page.module.css';
 
-import Envelope from '@/components/EnvelopedCard'
+import Envelope from '@/components/Card/EnvelopedCard'
 import { getMessages } from '@/utils/messages'
 
 export default async function Home() {
