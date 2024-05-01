@@ -1,5 +1,8 @@
 import prisma from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+
 export async function GET() {
   try {
     const messages = await prisma.message.findMany();
