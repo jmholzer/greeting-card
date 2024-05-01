@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400..700&family=Lobster&family=Mr+Dafoe&family=Parisienne&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Allura&family=Dancing+Script:wght@400..700&family=Dynalight&family=Gloria+Hallelujah&family=Grape+Nuts&family=Great+Vibes&family=Parisienne&display=swap');
 
 .envelopeContainer {
     position: relative;
@@ -54,7 +54,7 @@
     position: absolute;
     perspective: 1200px;
     transform-style: preserve-3d;
-    color: #000000;
+    color: #27221F;
 }
 
 .cardFront {

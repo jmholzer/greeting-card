@@ -3,7 +3,17 @@ import prisma from '@/lib/prisma';
 export async function POST(request: Request) {
   const messageData = await request.json();
 
+
+
   try {
+    if (!messageData.text || !messageData.fontFamily) {
+      throw new Error;
+    }
+
+    if (messageData.text.length > 100) {
+      throw new Error;
+    }
+
     await prisma.message.create({
       data: {
         text: messageData.text,

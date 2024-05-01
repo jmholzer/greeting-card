@@ -1,15 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Allura&family=Dancing+Script:wght@400..700&family=Dynalight&family=Gloria+Hallelujah&family=Grape+Nuts&family=Great+Vibes&family=Parisienne&display=swap');
+
 .container {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
+    color: #27221F;
 }
 
 .textAreaWrapper {
     height: 30vh;
     position: relative;
     background-color: #fff;
-    border-radius: 10px;
+    border-radius: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -29,8 +32,8 @@
     width: 100%;
     height: calc(100% - 3rem);
     border: none;
-    border-top-left-radius: 3%;
-    border-top-right-radius: 3%;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
     padding: 20px;
     resize: none;
     display: flex;
@@ -38,7 +41,6 @@
     align-items: center;
     text-align: center;
     overflow: hidden;
-    color: black;
     overflow-wrap: break-word;
     word-wrap: break-word;
     word-break: break-word;
@@ -60,13 +62,12 @@
     align-items: center;
     padding: 0 20px;
     background-color: #f5f5f5;
-    border-bottom-left-radius: 10px;
-    border-bottom-right-radius: 10px;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
 }
 
 .characterCount {
     font-size: 14px;
-    color: #888;
 }
 
 .dropdownContainer {
@@ -80,6 +81,7 @@
 
 .dropdownMenu {
     position: absolute;
+    width: 150px;
     bottom: 100%;
     right: 0;
     background-color: #fff;
@@ -92,35 +94,31 @@
 .dropdownItem {
     cursor: pointer;
     padding: 5px;
+    font-size: 18px;
 }
 
 .submitButton {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #f5f5f5;
-    color: #333;
+    background-color: transparent;
     border: none;
-    padding: 12px 24px;
-    font-size: 18px;
-    border-radius: 4px;
     cursor: pointer;
-    margin-top: 20px;
-    width: 200px;
+    margin-top: 10%;
+    width: 50%;
     margin-left: auto;
     margin-right: auto;
 }
 
-.submitButton:hover {
-    background-color: #eaeaea;
+.sendIcon {
+    width: 100%;
+    height: 100%;
+    font-size: 100%;
+    color: #f5f5f5;
 }
 
-.submitButton span {
-    margin-right: 8px;
-}
-
-.envelopeIcon {
-    font-size: 20px;
+.sendIcon:hover {
+    color: #c4c4c4;
 }
 
 .loader {
@@ -144,10 +142,24 @@
     }
 }
 
+.statusContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 1s ease-in forwards;
+    height: 100%;
+}
+
 .successIcon {
-    font-size: 48px;
-    color: green;
-    animation: fadeOut 10s ease-in-out forwards;
+    font-size: 50%;
+    height: 50%;
+    padding-bottom: 10px;
+}
+
+.successMessage {
+    text-align: center;
+    font-size: 25px;
 }
 
 .failureMessage {

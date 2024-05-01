@@ -19,7 +19,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
       y: "200%",
       transition: {
         delay: 0.2,
-        duration: 3,
+        duration: 1.8,
         ease: reverseEasing(easeIn)
       },
     }
