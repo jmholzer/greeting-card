@@ -132,24 +132,28 @@ export default function SignForm() {
                 </div>
               </div>
               {formik.status === 'failure' && (
-                <div className={styles.failureMessage}>Failed to send message. Please try again.</div>
+                <div className={styles.statusContainer}>
+                  <div className={styles.failureMessage}>Failed to send message. Please try again.</div>
+                </div>
               )}
             </>
           )}
         </div>
-        {!formik.isSubmitting && formik.status !== 'success' && (
-          <button
-            type="submit"
-            className={styles.submitButton}
-            disabled={!formik.values.text.trim() || formik.isSubmitting}
-          >
-            <EnvelopeIcon
-              className={styles.sendIcon}
-              style={{ color: (!formik.values.text.trim() || formik.isSubmitting) ? '#858585' : '#f5f5f5' }}
-            />
-          </button>
-        )}
-      </form>
-    </div>
+        {
+          !formik.isSubmitting && formik.status !== 'success' && (
+            <button
+              type="submit"
+              className={styles.submitButton}
+              disabled={!formik.values.text.trim() || formik.isSubmitting}
+            >
+              <EnvelopeIcon
+                className={styles.sendIcon}
+                style={{ color: (!formik.values.text.trim() || formik.isSubmitting) ? '#858585' : '#f5f5f5' }}
+              />
+            </button>
+          )
+        }
+      </form >
+    </div >
   );
 }
