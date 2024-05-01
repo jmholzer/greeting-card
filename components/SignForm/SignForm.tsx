@@ -16,7 +16,8 @@ const fonts = [
   'Gloria Hallelujah'
 ];
 const characterLimit = 100;
-const placeholder = "";
+const placeholder = `Your message here. Don't forget to say who you are :)
+Twoja wiadomość tutaj. Nie zapomnij powiedzieć, kim jesteś :)`;
 
 export default function SignForm() {
   const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
@@ -104,7 +105,7 @@ export default function SignForm() {
                 style={{ fontFamily: `'${formik.values.fontFamily}', cursive` }}
                 {...formik.getFieldProps('text')}
                 maxLength={characterLimit}
-                placeholder="Don't forget to say who you are :) / Nie zapomnij powiedzieć, kim jesteś."
+                placeholder={placeholder}
                 disabled={formik.isSubmitting}
                 onFocus={handleTextAreaFocus}
               />
