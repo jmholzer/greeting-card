@@ -4,17 +4,9 @@ import styles from './styles.module.css';
 import { EnvelopeIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { useFormik } from 'formik';
 import Link from 'next/link';
+import { fontFamilyMap } from '@/app/fonts';
 
-const fonts = [
-  'Dancing Script',
-  'Allura',
-  'Alex Brush',
-  'Parisienne',
-  'Dynalight',
-  'Great Vibes',
-  'Grape Nuts',
-  'Gloria Hallelujah'
-];
+const fonts = Object.keys(fontFamilyMap);
 const characterLimit = 100;
 const placeholder = `Your message here. Don't forget to say who you are :)
 Twoja wiadomość tutaj. Nie zapomnij powiedzieć, kim jesteś :)`;
@@ -69,7 +61,6 @@ export default function SignForm() {
   const handleFontFamilyChange = (font: string) => {
     formik.setFieldValue('fontFamily', font);
     setIsFontMenuOpen(false);
-    console.log(formik.values.fontFamily);
   };
 
   const handleTextAreaFocus = () => {
@@ -90,8 +81,7 @@ export default function SignForm() {
               <CheckIcon className={styles.successIcon} />
               <Link
                 href="/"
-                className={styles.successMessage}
-                style={{ fontFamily: `'Dancing Script', cursive` }}
+                className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}
               >
                 See the card &rarr;
               </Link>
@@ -101,8 +91,7 @@ export default function SignForm() {
             <>
               <textarea
                 ref={textRef}
-                className={styles.messageField}
-                style={{ fontFamily: `'${formik.values.fontFamily}', cursive` }}
+                className={`${styles.messageField} ${fontFamilyMap[formik.values.fontFamily]}`}
                 {...formik.getFieldProps('text')}
                 maxLength={characterLimit}
                 placeholder={placeholder}
@@ -113,7 +102,7 @@ export default function SignForm() {
                 <div className={styles.characterCount}>{formik.values.text.length}/{characterLimit}</div>
                 <div className={styles.dropdownContainer}>
                   <div onClick={handleFontMenuClick} className={styles.dropdownButton}>
-                    <span style={{ fontFamily: `'${formik.values.fontFamily}', cursive`, color: 'black' }}>Choose a Font</span>
+                    <span className={fontFamilyMap[formik.values.fontFamily]}>Choose a Font</span>
                   </div>
                   {isFontMenuOpen && (
                     <div className={styles.dropdownMenu}>
@@ -121,8 +110,7 @@ export default function SignForm() {
                         <div
                           key={font}
                           onClick={() => handleFontFamilyChange(font)}
-                          className={styles.dropdownItem}
-                          style={{ fontFamily: `'${font}', cursive`, color: 'black' }}
+                          className={`${styles.dropdownItem} ${fontFamilyMap[font]}`}
                         >
                           Your message
                         </div>
@@ -153,7 +141,7 @@ export default function SignForm() {
             </button>
           )
         }
-      </form >
-    </div >
+      </form>
+    </div>
   );
 }
