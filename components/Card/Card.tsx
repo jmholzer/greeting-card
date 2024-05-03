@@ -156,7 +156,7 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
                             gridColumn: `${messagePositions[index][1]}`
                           }}
                         >
-                          <AutoTextSize mode='box' minFontSizePx={10} fontSizePrecisionPx={0.01}>
+                          <AutoTextSize mode='box' minFontSizePx={10}>
                             {message.text}
                           </AutoTextSize>
                         </div>
