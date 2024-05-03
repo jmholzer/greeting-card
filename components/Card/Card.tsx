@@ -93,7 +93,7 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
     <>
       {!isEnvelopeOpen ? (
         <div className={styles.cardContainer}>
-          <Image src="/front.jpg" alt="Card Front" className={styles.cardFront} fill />
+          <Image src="/front.jpg" alt="Card Front" className={styles.cardFront} fill priority />
         </div>
       ) : (
         <motion.div onClick={handleClick} transition={spring} className={styles.cardContainer}>
