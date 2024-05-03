@@ -9,6 +9,9 @@ import styles from './styles.module.css';
 import { Message } from '@/utils/messages';
 import { randomGridPositions } from '@/utils/grid';
 
+import { fontFamilyMap } from '@/app/fonts'
+
+
 interface CardProps {
   isEnvelopeOpen: boolean;
   messages: Message[];
@@ -141,19 +144,24 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
               >
                 <div className={styles.cardBack}>
                   <div className={styles.messages}>
-                    {messages.slice(0, 16).map((message, index) => (
-                      <div
-                        key={index}
-                        className={styles.message}
-                        style={{
-                          fontFamily: message.fontFamily,
-                          gridRow: `${messagePositions[index][0]}`,
-                          gridColumn: `${messagePositions[index][1]}`
-                        }}
-                      >
-                        <AutoTextSize mode='box' minFontSizePx={2}>{message.text}</AutoTextSize>
-                      </div>
-                    ))}
+                    {messages.slice(0, 16).map((message, index) => {
+                      const fontClassName = fontFamilyMap[message.fontFamily] || '';
+
+                      return (
+                        <div
+                          key={index}
+                          className={`${styles.message} ${fontClassName}`}
+                          style={{
+                            gridRow: `${messagePositions[index][0]}`,
+                            gridColumn: `${messagePositions[index][1]}`
+                          }}
+                        >
+                          <AutoTextSize mode='box' minFontSizePx={10} fontSizePrecisionPx={0.01}>
+                            {message.text}
+                          </AutoTextSize>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </motion.div>
