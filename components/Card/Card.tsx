@@ -152,8 +152,8 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
                           key={index}
                           className={`${styles.message} ${fontClassName}`}
                           style={{
-                            gridRow: `${messagePositions[index][0]}`,
-                            gridColumn: `${messagePositions[index][1]}`
+                            gridRow: `${messagePositions[index][0]} + 1`,
+                            gridColumn: `${messagePositions[index][1]} + 1`
                           }}
                         >
                           <AutoTextSize mode='box' minFontSizePx={0.1}>
