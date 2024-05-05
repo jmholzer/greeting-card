@@ -144,16 +144,16 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
               >
                 <div className={styles.cardBack}>
                   <div className={styles.messages}>
-                    {messages.slice(0, 16).map((message, index) => {
+                    {messages.slice(0, gridRows * gridCols).map((message, index) => {
                       const fontClassName = fontFamilyMap[message.fontFamily] || '';
-
+                      console.log(`${messagePositions[index][0]}} ${messagePositions[index][1]}}`)
                       return (
                         <div
                           key={index}
                           className={`${styles.message} ${fontClassName}`}
                           style={{
-                            gridRow: `${messagePositions[index][0]} + 1`,
-                            gridColumn: `${messagePositions[index][1]} + 1`
+                            gridRow: `${messagePositions[index][0] + 1} / ${messagePositions[index][0] + 1}`,
+                            gridColumn: `${messagePositions[index][1] + 1} / ${messagePositions[index][1] + 1}`,
                           }}
                         >
                           <AutoTextSize mode='box' minFontSizePx={0.1}>
