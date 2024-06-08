@@ -8,8 +8,7 @@ import { fontFamilyMap } from '@/app/fonts';
 
 const fonts = Object.keys(fontFamilyMap);
 const characterLimit = 100;
-const placeholder = `Your message here. Don't forget to say who you are :)
-Twoja wiadomość tutaj. Nie zapomnij powiedzieć, kim jesteś :)`;
+const placeholder = `Your message here. Don't forget to say who you are :)`;
 
 export default function SignForm() {
   const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
