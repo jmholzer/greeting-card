@@ -84,9 +84,7 @@
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- GETTING STARTED -->
-## Getting Started
-
-Follow these steps to get the card running locally
+## Run a dev version
 
 ### Prerequisites
 
@@ -124,14 +122,28 @@ Follow these steps to get the card running locally
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Self-hosting
+## Self-hosting on Vercel
 
-See the [open issues](https://github.com/jmholzer/greeting-card/issues) for a full list of proposed features (and known issues).
+1. Clone the repo
+
+   ```sh
+   git clone https://github.com/jmholzer/greeting-card.git
+   ```
+
+2. Install NPM packages
+
+   ```sh
+   npm install
+   ```
+
+3.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- CONTRIBUTING -->
 ## Contributing
+
+See the [open issues](https://github.com/jmholzer/greeting-card/issues) for a full list of proposed features (and known issues).
 
 Feel free to open an issue or contribute a PR:
 
@@ -146,7 +158,7 @@ Feel free to open an issue or contribute a PR:
 <!-- LICENSE -->
 ## License
 
-Distributed under the MIT License. See `LICENSE.txt` for more information.
+Distributed under the MIT License. See `LICENSE` for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
