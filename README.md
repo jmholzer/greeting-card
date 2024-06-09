@@ -21,7 +21,6 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
 
 <!-- PROJECT LOGO -->
 <br />
@@ -86,16 +85,6 @@
 <!-- GETTING STARTED -->
 ## Run a dev version
 
-### Prerequisites
-
-* npm
-
-  ```sh
-  npm install npm@latest -g
-  ```
-
-### Run locally
-
 1. Clone the repo
 
    ```sh
@@ -136,7 +125,50 @@
    npm install
    ```
 
-3.
+3. Install the Vercel CLI and login
+
+   ```sh
+   npm i -g vercel
+   vercel login
+   ```
+
+4. Deploy a new Vercel project for your card
+
+   ```sh
+   vercel deploy
+   ```
+
+5. [Create a Postgres database on Vercel and connect it with your new project](https://vercel.com/docs/storage/vercel-postgres/quickstart#create-a-postgres-database)
+
+6. Add the `HOST` environment variable to the Vercel project (this can be any URL that points to your deployment)
+
+   ```sh
+   HOST=https://greeting-card-demo.vercel.app
+   ```
+
+7. Pull the DB environment variables to your local
+
+   ```sh
+   vercel env pull 
+   ```
+
+8. Create a Prisma client
+
+   ```sh
+   npx prisma generate
+   ```
+
+9. Create the DB tables
+
+   ```sh
+   npx prisma db push
+   ```
+
+10. Redeploy your project to load the new env vars
+
+   ```sh
+   vercel deploy
+   ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -190,8 +222,6 @@ Project Link: [https://github.com/jmholzer/greeting-card](https://github.com/jmh
 [issues-url]: https://github.com/jmholzer/greeting-card/issues
 [license-shield]: https://img.shields.io/github/license/jmholzer/greeting-card.svg?style=for-the-badge
 [license-url]: https://github.com/jmholzer/greeting-card/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/jannic-holzer
 [product-screenshot]: README_images/screenshot.png
 [Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
 [Next-url]: https://nextjs.org/
