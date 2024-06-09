@@ -21,7 +21,6 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
 
 <!-- PROJECT LOGO -->
 <br />
@@ -74,6 +73,10 @@
 
 [![Product Name Screen Shot][product-screenshot]](https://greeting-card-demo.vercel.app/)
 
+View the card at the main route (`/`).
+
+Sign the card at `/sign` (up to 16 messages).
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Built With
@@ -83,52 +86,19 @@
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- GETTING STARTED -->
-## Run a dev version
-
-### Prerequisites
-
-* npm
-
-  ```sh
-  npm install npm@latest -g
-  ```
-
-### Run locally
-
-1. Clone the repo
-
-   ```sh
-   git clone https://github.com/jmholzer/greeting-card.git
-   ```
-
-2. Install NPM packages
-
-   ```sh
-   npm install
-   ```
-
-3. Create `.env.local` in the directory of the project and add this:
-
-   ```sh
-   HOST="http://localhost:3000"
-   ```
-
-4. Run a dev version:
-
-   ```sh
-   HOST="http://localhost:3000"
-   ```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 ## Self-hosting on Vercel
 
-1. Clone the repo
+0. Clone the repo
 
    ```sh
    git clone https://github.com/jmholzer/greeting-card.git
    ```
+
+1. Customise your card: add a `front.jpg` to be the fro
+
+   * Add a `front.jpg` with aspect ratio 1:1.414 (landscape). [Canva](https://www.canva.com/create/greeting-cards/) is a good place to find design templates.
+   * Modify `app/favicon.ico`.
+   * Modify the title / description of the page in `app/layout.tsx`.
 
 2. Install NPM packages
 
@@ -136,7 +106,52 @@
    npm install
    ```
 
-3.
+3. Install the Vercel CLI and login
+
+   ```sh
+   npm i -g vercel
+   vercel login
+   ```
+
+4. Deploy a new Vercel project for your card
+
+   ```sh
+   vercel deploy
+   ```
+
+5. [Create a Postgres database on Vercel and connect it with your new project](https://vercel.com/docs/storage/vercel-postgres/quickstart#create-a-postgres-database)
+
+6. Add the `HOST` environment variable to the Vercel project (this can be any URL that points to your deployment)
+
+   ```sh
+   HOST=https://greeting-card-demo.vercel.app
+   ```
+
+7. Pull the DB environment variables to your local
+
+   ```sh
+   vercel env pull 
+   ```
+
+8. Create a Prisma client
+
+   ```sh
+   npx prisma generate
+   ```
+
+9. Create the DB tables
+
+   ```sh
+   npx prisma db push
+   ```
+
+10. Redeploy your project to load the new env vars
+
+   ```sh
+   vercel --prod
+   ```
+
+11. Navigate to your project's URL and check that you can view (`/`) and sign (`/sign`) the card.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -181,8 +196,6 @@ Project Link: [https://github.com/jmholzer/greeting-card](https://github.com/jmh
 [issues-url]: https://github.com/jmholzer/greeting-card/issues
 [license-shield]: https://img.shields.io/github/license/jmholzer/greeting-card.svg?style=for-the-badge
 [license-url]: https://github.com/jmholzer/greeting-card/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/jannic-holzer
 [product-screenshot]: README_images/screenshot.png
 [Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
 [Next-url]: https://nextjs.org/
