@@ -73,6 +73,10 @@
 
 [![Product Name Screen Shot][product-screenshot]](https://example.com)
 
+View the card at the main route (`/`).
+
+Sign the card at `/sign`. Supports up to 16 messages.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Built With
@@ -82,42 +86,19 @@
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- GETTING STARTED -->
-## Run a dev version
-
-1. Clone the repo
-
-   ```sh
-   git clone https://github.com/jmholzer/greeting-card.git
-   ```
-
-2. Install NPM packages
-
-   ```sh
-   npm install
-   ```
-
-3. Create `.env.local` in the directory of the project and add this:
-
-   ```sh
-   HOST="http://localhost:3000"
-   ```
-
-4. Run a dev version:
-
-   ```sh
-   HOST="http://localhost:3000"
-   ```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 ## Self-hosting on Vercel
 
-1. Clone the repo
+0. Clone the repo
 
    ```sh
    git clone https://github.com/jmholzer/greeting-card.git
    ```
+
+1. Customise your card: add a `front.jpg` to be the fro
+
+   * Add a `front.jpg` with aspect ratio 1:1.414 (landscape). [Canva](https://www.canva.com/create/greeting-cards/) is a good place to find design templates.
+   * Modify `app/favicon.ico`.
+   * Modify the title / description of the page in `app/layout.tsx`.
 
 2. Install NPM packages
 
@@ -167,8 +148,10 @@
 10. Redeploy your project to load the new env vars
 
    ```sh
-   vercel deploy
+   vercel --prod
    ```
+
+11. Navigate to your project's URL and check that you can view (`/`) and sign (`/sign`) the card.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
