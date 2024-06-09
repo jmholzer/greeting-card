@@ -153,6 +153,8 @@ Sign the card at `/sign` (up to 16 messages).
 
 11. Navigate to your project's URL and check that you can view (`/`) and sign (`/sign`) the card.
 
+From here you can put your own domain infront of your deployment and share the link.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- CONTRIBUTING -->
