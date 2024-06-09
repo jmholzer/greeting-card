@@ -75,7 +75,7 @@
 
 View the card at the main route (`/`).
 
-Sign the card at `/sign`. Supports up to 16 messages.
+Sign the card at `/sign` (up to 16 messages).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
