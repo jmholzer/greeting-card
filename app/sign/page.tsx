@@ -1,7 +1,7 @@
 import styles from '../page.module.css';
 import SignForm from '@/components/SignForm/SignForm';
 import prisma from '@/lib/prisma';
-import { MAX_MESSAGES } from '@/lib/config';
+import { CARD_BACKGROUND_COLOR, MAX_MESSAGES } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,7 @@ export default async function Home() {
   const isFull = await isCardFull();
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={{ backgroundColor: CARD_BACKGROUND_COLOR }}>
       <SignForm isFull={isFull} />
     </div>
   );

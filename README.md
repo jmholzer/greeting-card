@@ -62,7 +62,9 @@ Sign the card at `/sign` (up to 16 messages).
 
 ## Customising your card
 
-* Add a `front.jpg` to the `public/` folder to be the front of the card. It is not included in the repository, and the card front will be blank without it. Use a landscape image with an aspect ratio of 1:1.414. [Canva](https://www.canva.com/create/greeting-cards/) is a good place to find design templates.
+* The card front defaults to `public/card-front-default.jpg`. To use your own, set `NEXT_PUBLIC_CARD_FRONT_URL` (see [Environment variables](#environment-variables)). Either add your image to `public/` and set the variable to its path, for example `/front.jpg`, or set it to a full `https://` URL. Only that exact URL is allowed for remote images, and the variable is read at build time, so rebuild or redeploy after changing it. Use a landscape image with an aspect ratio of 1:1.414. [Canva](https://www.canva.com/create/greeting-cards/) is a good place to find design templates.
+* The page background defaults to orange (`#e66b1e`). Set `NEXT_PUBLIC_CARD_BACKGROUND_COLOR` to change it, using a hex colour such as `#304D30`, a colour name such as `tomato`, or an `rgb()` or `hsl()` value. Invalid values are ignored. Like the card front, it is read at build time.
+* Upgrading from an earlier version that expected `public/front.jpg`? Set `NEXT_PUBLIC_CARD_FRONT_URL=/front.jpg` to keep using it.
 * Replace `app/favicon.ico`.
 * Change the page title and description in `app/layout.tsx`.
 
@@ -76,6 +78,8 @@ Copy `.env.example` to `.env` and fill it in. Use `.env` rather than `.env.local
 | --- | --- |
 | `POSTGRES_PRISMA_URL` | PostgreSQL connection string used by the app (a pooled connection on Vercel Postgres). |
 | `POSTGRES_URL_NON_POOLING` | Direct PostgreSQL connection string, used by Prisma for schema changes. It can be the same as `POSTGRES_PRISMA_URL` for a local database. |
+| `NEXT_PUBLIC_CARD_FRONT_URL` | Optional. Overrides the default card front with a path in `public/` (e.g. `/front.jpg`) or an `https://` URL. Read at build time. |
+| `NEXT_PUBLIC_CARD_BACKGROUND_COLOR` | Optional. Page background colour: hex, colour name, or `rgb()`/`hsl()`. Defaults to `#e66b1e`. Read at build time. |
 | `HOST` | The base URL of the running site, with no trailing slash (e.g. `http://localhost:3000` locally, or your deployment URL). The home page uses it to fetch messages from `/api/messages`. |
 
 On Vercel, the two `POSTGRES_*` variables are added for you when you connect a Vercel Postgres database. You only need to add `HOST` yourself.
@@ -102,7 +106,7 @@ docker run --name greeting-card-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=
    cp .env.example .env
    ```
 
-3. Add your card front as `public/front.jpg` (see [Customising your card](#customising-your-card))
+3. Optionally set your own card front with `NEXT_PUBLIC_CARD_FRONT_URL` (see [Customising your card](#customising-your-card))
 
 4. Create the database tables
 
@@ -130,7 +134,7 @@ Other useful scripts: `npm run build` (production build), `npm start` (serve the
    git clone https://github.com/jmholzer/greeting-card.git
    ```
 
-1. Customise your card: add `public/front.jpg`, replace `app/favicon.ico` and update `app/layout.tsx` (see [Customising your card](#customising-your-card))
+1. Customise your card: optionally set `NEXT_PUBLIC_CARD_FRONT_URL`, replace `app/favicon.ico` and update `app/layout.tsx` (see [Customising your card](#customising-your-card))
 
 2. Install NPM packages
 

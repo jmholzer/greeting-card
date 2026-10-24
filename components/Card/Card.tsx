@@ -8,6 +8,7 @@ import styles from './styles.module.css';
 
 import { Message } from '@/utils/messages';
 import { assignGridCells } from '@/utils/grid';
+import { CARD_FRONT_SRC } from '@/lib/config';
 
 import { fontFamilyMap } from '@/app/fonts'
 
@@ -93,7 +94,7 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
     <>
       {!isEnvelopeOpen ? (
         <div className={styles.cardContainer}>
-          <Image src="/front.jpg" alt="Card Front" className={styles.cardFront} fill preload />
+          <Image src={CARD_FRONT_SRC} alt="Card Front" className={styles.cardFront} fill preload />
         </div>
       ) : (
         <motion.div onClick={handleClick} transition={spring} className={styles.cardContainer}>
@@ -129,7 +130,7 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
                   position: "absolute",
                 }}
               >
-                <Image src="/front.jpg" alt="Card Front" className={styles.cardFront} fill />
+                <Image src={CARD_FRONT_SRC} alt="Card Front" className={styles.cardFront} fill />
               </motion.div>
               <motion.div
                 initial={{ rotateY: 180 }}
