@@ -5,10 +5,10 @@ import { EnvelopeIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { useFormik } from 'formik';
 import Link from 'next/link';
 import { fontFamilyMap } from '@/app/fonts';
-import { MAX_MESSAGES } from '@/lib/config';
+import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGES } from '@/lib/config';
 
-const fonts = Object.keys(fontFamilyMap);
-const characterLimit = 100;
+const fonts: string[] = [...ALLOWED_FONTS];
+const characterLimit = MAX_MESSAGE_LENGTH;
 const placeholder = `Your message here. Don't forget to say who you are :)`;
 
 interface SignFormProps {
@@ -17,6 +17,7 @@ interface SignFormProps {
 
 export default function SignForm({ isFull = false }: SignFormProps) {
   const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const textRef = useRef<HTMLTextAreaElement>(null);
 
   const formik = useFormik({
@@ -32,6 +33,7 @@ export default function SignForm({ isFull = false }: SignFormProps) {
       return errors;
     },
     onSubmit: async (values, { setSubmitting, setStatus }) => {
+      setErrorMessage('');
       try {
         const response = await fetch('/api/message', {
           method: 'POST',
@@ -45,6 +47,8 @@ export default function SignForm({ isFull = false }: SignFormProps) {
         } else if (response.status === 409) {
           setStatus('full');
         } else {
+          const body = await response.json().catch(() => null);
+          setErrorMessage(typeof body?.message === 'string' ? body.message : '');
           setStatus('failure');
         }
       } catch (error) {
@@ -150,7 +154,7 @@ export default function SignForm({ isFull = false }: SignFormProps) {
               </div>
               {formik.status === 'failure' && (
                 <div className={styles.statusContainer}>
-                  <div className={styles.failureMessage}>Failed to send message. Please try again.</div>
+                  <div className={styles.failureMessage}>{errorMessage || 'Failed to send message. Please try again.'}</div>
                 </div>
               )}
             </>

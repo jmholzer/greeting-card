@@ -1,3 +1,4 @@
+import type { FontName } from '@/lib/config'
 import {
 	Dancing_Script,
 	Allura,
@@ -53,7 +54,7 @@ export const gloriaHalleluja = Gloria_Hallelujah({
 	weight: '400'
 })
 
-export const fontFamilyMap: Record<string, string> = {
+const fontClassNames = {
 	'Dancing Script': dancingScript.className,
 	'Allura': allura.className,
 	'Alex Brush': alexBrush.className,
@@ -62,4 +63,6 @@ export const fontFamilyMap: Record<string, string> = {
 	'Great Vibes': greatVibes.className,
 	'Grape Nuts': grapeNuts.className,
 	'Gloria Hallelujah': gloriaHalleluja.className,
-};
+} satisfies Record<FontName, string>;
+
+export const fontFamilyMap: Record<string, string> = fontClassNames;
