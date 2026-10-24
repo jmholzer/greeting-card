@@ -7,7 +7,7 @@ import { AutoTextSize } from 'auto-text-size'
 import styles from './styles.module.css';
 
 import { Message } from '@/utils/messages';
-import { randomGridPositions } from '@/utils/grid';
+import { assignGridCells } from '@/utils/grid';
 
 import { fontFamilyMap } from '@/app/fonts'
 
@@ -27,10 +27,10 @@ const rotationFactor = 5;
 
 const gridRows = 4;
 const gridCols = 4;
-const messagePositions = randomGridPositions(gridRows, gridCols)
 
 export default function Card({ isEnvelopeOpen, messages }: CardProps) {
   messages = messages.slice(0, gridRows * gridCols)
+  const messageCells = assignGridCells(messages.map((message) => message.id), gridRows, gridCols)
 
   const [isFlipped, setIsFlipped] = useState(false)
   const handleClick = () => {
@@ -144,16 +144,17 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
               >
                 <div className={styles.cardBack}>
                   <div className={styles.messages}>
-                    {messages.slice(0, gridRows * gridCols).map((message, index) => {
+                    {messages.map((message) => {
                       const fontClassName = fontFamilyMap[message.fontFamily] || '';
-                      console.log(`${messagePositions[index][0]}} ${messagePositions[index][1]}}`)
+                      const cell = messageCells.get(message.id);
+                      if (!cell) return null;
                       return (
                         <div
-                          key={index}
+                          key={message.id}
                           className={`${styles.message} ${fontClassName}`}
                           style={{
-                            gridRow: `${messagePositions[index][0] + 1} / ${messagePositions[index][0] + 1}`,
-                            gridColumn: `${messagePositions[index][1] + 1} / ${messagePositions[index][1] + 1}`,
+                            gridRow: `${cell[0] + 1} / span 1`,
+                            gridColumn: `${cell[1] + 1} / span 1`,
                           }}
                         >
                           <AutoTextSize mode='box' minFontSizePx={0.1}>
