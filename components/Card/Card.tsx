@@ -87,7 +87,7 @@ export default function Card({ isEnvelopeOpen, messages }: CardProps) {
   useEffect(() => {
     dx.set(-rotateXaxis)
     dy.set(rotateYaxis)
-  }, [rotateXaxis, rotateYaxis])
+  }, [rotateXaxis, rotateYaxis, dx, dy])
 
   return (
     <>

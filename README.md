@@ -1,29 +1,11 @@
-<!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->
 <a name="readme-top"></a>
-<!--
-*** Thanks for checking out the Best-README-Template. If you have a suggestion
-*** that would make this better, please fork the repo and create a pull request
-*** or simply open an issue with the tag "enhancement".
-*** Don't forget to give the project a star!
-*** Thanks again! Now go create something AMAZING! :D
--->
 
-<!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 
-<!-- PROJECT LOGO -->
-<br />
 <div align="center">
   <a href="https://github.com/jmholzer/greeting-card">
     <img src="README_images/logo.png" alt="Logo" width="80" height="80">
@@ -34,7 +16,7 @@
   <p align="center">
     A free, customizable, and self-hostable greeting card template built using Next.js and Framer Motion. It allows multiple people to sign and contribute to a digital card that you can customise for whatever occasion.
     <br />
-    <a href="https://github.com/jmholzer/greeting-card">View Demo</a>
+    <a href="https://greeting-card-demo.vercel.app/">View Demo</a>
     ·
     <a href="https://github.com/jmholzer/greeting-card/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
     ·
@@ -42,7 +24,6 @@
   </p>
 </div>
 
-<!-- TABLE OF CONTENTS -->
 <details>
   <summary>Table of Contents</summary>
   <ol>
@@ -52,23 +33,15 @@
         <li><a href="#built-with">Built With</a></li>
       </ul>
     </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#customising-your-card">Customising your card</a></li>
+    <li><a href="#environment-variables">Environment variables</a></li>
+    <li><a href="#local-development">Local development</a></li>
+    <li><a href="#self-hosting-on-vercel">Self-hosting on Vercel</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
   </ol>
 </details>
 
-<!-- ABOUT THE PROJECT -->
 ## About The Project
 
 [![Product Name Screen Shot][product-screenshot]](https://greeting-card-demo.vercel.app/)
@@ -83,6 +56,69 @@ Sign the card at `/sign` (up to 16 messages).
 
 * [![Next][Next.js]][Next-url]
 * [![React][React.js]][React-url]
+* [Prisma](https://www.prisma.io/) with PostgreSQL
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Customising your card
+
+* Add a `front.jpg` to the `public/` folder to be the front of the card. It is not included in the repository, and the card front will be blank without it. Use a landscape image with an aspect ratio of 1:1.414. [Canva](https://www.canva.com/create/greeting-cards/) is a good place to find design templates.
+* Replace `app/favicon.ico`.
+* Change the page title and description in `app/layout.tsx`.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Environment variables
+
+Copy `.env.example` to `.env` and fill it in. Use `.env` rather than `.env.local`, because the Prisma CLI only reads `.env`. It is git-ignored, so your credentials are not committed.
+
+| Variable | Description |
+| --- | --- |
+| `POSTGRES_PRISMA_URL` | PostgreSQL connection string used by the app (a pooled connection on Vercel Postgres). |
+| `POSTGRES_URL_NON_POOLING` | Direct PostgreSQL connection string, used by Prisma for schema changes. It can be the same as `POSTGRES_PRISMA_URL` for a local database. |
+| `HOST` | The base URL of the running site, with no trailing slash (e.g. `http://localhost:3000` locally, or your deployment URL). The home page uses it to fetch messages from `/api/messages`. |
+
+On Vercel, the two `POSTGRES_*` variables are added for you when you connect a Vercel Postgres database. You only need to add `HOST` yourself.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Local development
+
+You need Node.js 18.17 or later and a PostgreSQL database. Any Postgres works; for example, with Docker:
+
+```sh
+docker run --name greeting-card-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=greeting_card -p 5432:5432 -d postgres:16
+```
+
+1. Install dependencies (this also runs `prisma generate`)
+
+   ```sh
+   npm install
+   ```
+
+2. Create your environment file and edit the values if your database differs
+
+   ```sh
+   cp .env.example .env
+   ```
+
+3. Add your card front as `public/front.jpg` (see [Customising your card](#customising-your-card))
+
+4. Create the database tables
+
+   ```sh
+   npx prisma db push
+   ```
+
+5. Start the dev server
+
+   ```sh
+   npm run dev
+   ```
+
+6. Open <http://localhost:3000> to view the card and <http://localhost:3000/sign> to sign it.
+
+Other useful scripts: `npm run build` (production build), `npm start` (serve the production build) and `npm run lint`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -94,11 +130,7 @@ Sign the card at `/sign` (up to 16 messages).
    git clone https://github.com/jmholzer/greeting-card.git
    ```
 
-1. Customise your card: add a `front.jpg` to be the fro
-
-   * Add a `front.jpg` with aspect ratio 1:1.414 (landscape). [Canva](https://www.canva.com/create/greeting-cards/) is a good place to find design templates.
-   * Modify `app/favicon.ico`.
-   * Modify the title / description of the page in `app/layout.tsx`.
+1. Customise your card: add `public/front.jpg`, replace `app/favicon.ico` and update `app/layout.tsx` (see [Customising your card](#customising-your-card))
 
 2. Install NPM packages
 
@@ -127,10 +159,10 @@ Sign the card at `/sign` (up to 16 messages).
    HOST=https://greeting-card-demo.vercel.app
    ```
 
-7. Pull the DB environment variables to your local
+7. Pull the DB environment variables to your local `.env` file (the Prisma CLI reads `.env`, not `.env.local`)
 
    ```sh
-   vercel env pull 
+   vercel env pull .env
    ```
 
 8. Create a Prisma client
@@ -147,17 +179,16 @@ Sign the card at `/sign` (up to 16 messages).
 
 10. Redeploy your project to load the new env vars
 
-   ```sh
-   vercel --prod
-   ```
+    ```sh
+    vercel --prod
+    ```
 
 11. Navigate to your project's URL and check that you can view (`/`) and sign (`/sign`) the card.
 
-From here you can put your own domain infront of your deployment and share the link.
+From here you can put your own domain in front of your deployment and share the link.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- CONTRIBUTING -->
 ## Contributing
 
 See the [open issues](https://github.com/jmholzer/greeting-card/issues) for a full list of proposed features (and known issues).
@@ -172,22 +203,12 @@ Feel free to open an issue or contribute a PR:
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- LICENSE -->
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. See [`LICENSE`](LICENSE) for more information.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- CONTACT -->
-## Contact
-
-Project Link: [https://github.com/jmholzer/greeting-card](https://github.com/jmholzer/greeting-card)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 [contributors-shield]: https://img.shields.io/github/contributors/jmholzer/greeting-card.svg?style=for-the-badge
 [contributors-url]: https://github.com/jmholzer/greeting-card/graphs/contributors
 [forks-shield]: https://img.shields.io/github/forks/jmholzer/greeting-card.svg?style=for-the-badge
@@ -197,7 +218,7 @@ Project Link: [https://github.com/jmholzer/greeting-card](https://github.com/jmh
 [issues-shield]: https://img.shields.io/github/issues/jmholzer/greeting-card.svg?style=for-the-badge
 [issues-url]: https://github.com/jmholzer/greeting-card/issues
 [license-shield]: https://img.shields.io/github/license/jmholzer/greeting-card.svg?style=for-the-badge
-[license-url]: https://github.com/jmholzer/greeting-card/blob/master/LICENSE.txt
+[license-url]: https://github.com/jmholzer/greeting-card/blob/main/LICENSE
 [product-screenshot]: README_images/screenshot.png
 [Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
 [Next-url]: https://nextjs.org/
