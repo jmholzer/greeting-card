@@ -84,7 +84,7 @@ On Vercel, the two `POSTGRES_*` variables are added for you when you connect a V
 
 ## Local development
 
-You need Node.js 18.17 or later and a PostgreSQL database. Any Postgres works; for example, with Docker:
+You need Node.js 20.9 or later and a PostgreSQL database. Any Postgres works; for example, with Docker:
 
 ```sh
 docker run --name greeting-card-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=greeting_card -p 5432:5432 -d postgres:16

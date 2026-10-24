@@ -23,7 +23,7 @@ export default function SignForm({ isFull = false }: SignFormProps) {
   const formik = useFormik({
     initialValues: {
       text: '',
-      fontFamily: fonts[Math.floor(Math.random() * fonts.length)],
+      fontFamily: fonts[0],
     },
     validate: (values) => {
       const errors: { text?: string } = {};
@@ -57,6 +57,12 @@ export default function SignForm({ isFull = false }: SignFormProps) {
       setSubmitting(false);
     },
   });
+
+  const { setFieldValue } = formik;
+  useEffect(() => {
+    // Picked after mount so the server and client render the same initial HTML.
+    setFieldValue('fontFamily', fonts[Math.floor(Math.random() * fonts.length)], false);
+  }, [setFieldValue]);
 
   useEffect(() => {
     if (textRef.current) {
