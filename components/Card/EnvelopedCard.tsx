@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  AnimatePresence,
   motion,
   useMotionTemplate,
   useMotionValue,
@@ -8,11 +9,13 @@ import {
   useSpring,
   useTransform,
 } from 'framer-motion';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from './styles.module.css';
 
 import Card from '@/components/Card/Card';
 import { useDeviceTilt, useGesture } from '@/components/Card/hooks';
+import { useHints } from '@/components/Card/useHints';
+import type { HintStep } from '@/components/Card/useHints';
 import { Message } from '@/utils/messages';
 
 interface EnvelopedCardProps {
@@ -22,11 +25,20 @@ interface EnvelopedCardProps {
 // sealed: flap closed. open: flap up, card peeking. out: card taken out, envelope gone.
 type Stage = 'sealed' | 'open' | 'out';
 
-const HINTS: Record<Stage, string> = {
-  sealed: 'Tap or swipe up to open the envelope',
-  open: 'Swipe the card up, or tap it',
-  out: 'Tap or swipe to open the card',
+const STEP_FOR_STAGE: Record<Stage, HintStep> = {
+  sealed: 'openEnvelope',
+  open: 'takeOut',
+  out: 'openCard',
 };
+
+const HINT_TEXT: Record<HintStep, string> = {
+  openEnvelope: 'Tap or swipe up to open the envelope',
+  takeOut: 'Swipe the card up, or tap it',
+  openCard: 'Tap or swipe to open the card',
+};
+
+// A hint only appears after the visitor has been idle on a step for this long.
+const HINT_IDLE_MS = 2000;
 
 const pullSpring = { stiffness: 260, damping: 28 };
 
@@ -41,6 +53,17 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
   const pullYSmooth = useSpring(pullY, pullSpring);
   const dragXSmooth = useSpring(dragX, pullSpring);
   const { tiltX, tiltY, requestPermission } = useDeviceTilt(!reduceMotion);
+
+  const { ready: hintsReady, isDone, markDone } = useHints();
+  const step = STEP_FOR_STAGE[stage];
+  const hintPending = hintsReady && !isDone(step);
+  const [idleStep, setIdleStep] = useState<HintStep | null>(null);
+  useEffect(() => {
+    if (!hintPending) return;
+    const timer = setTimeout(() => setIdleStep(step), HINT_IDLE_MS);
+    return () => clearTimeout(timer);
+  }, [hintPending, step]);
+  const showHint = hintPending && idleStep === step;
 
   const shadowX = useTransform([tiltY, dragXSmooth], ([ty, dx]: number[]) => -ty * 1.5 - dx * 0.06);
   const shadowY = useTransform(
@@ -60,6 +83,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
 
   const advance = () => {
     void requestPermission();
+    markDone(step);
     if (stage === 'sealed') {
       vibrate(8);
       setStage('open');
@@ -152,7 +176,6 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
         : isFlipped
           ? 'Close the card'
           : 'Open the card';
-  const hint = stage === 'out' && isFlipped ? 'Tap or swipe to close the card' : HINTS[stage];
 
   return (
     <div className={styles.envelopeContainer}>
@@ -229,9 +252,21 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
         {...gesture}
       />
 
-      <p className={styles.hint} aria-live="polite">
-        {hint}
-      </p>
+      <div className={styles.hintArea} aria-live="polite">
+        <AnimatePresence>
+          {showHint && (
+            <motion.p
+              key={step}
+              className={styles.hint}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: { duration: reduceMotion ? 0.15 : 0.7 } }}
+              exit={{ opacity: 0, transition: { duration: reduceMotion ? 0 : 0.2 } }}
+            >
+              {HINT_TEXT[step]}
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

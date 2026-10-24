@@ -66,7 +66,6 @@ export default function Card({ messages, isFlipped, dragX, reduceMotion }: CardP
           fill
           preload
         />
-        <div className={styles.fold} />
         <div className={styles.paper} />
       </motion.div>
 
@@ -99,7 +98,6 @@ export default function Card({ messages, isFlipped, dragX, reduceMotion }: CardP
             );
           })}
         </div>
-        <div className={styles.fold} />
         <div className={styles.paper} />
       </motion.div>
     </motion.div>
