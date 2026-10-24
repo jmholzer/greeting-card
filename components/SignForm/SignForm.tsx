@@ -5,12 +5,17 @@ import { EnvelopeIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { useFormik } from 'formik';
 import Link from 'next/link';
 import { fontFamilyMap } from '@/app/fonts';
+import { MAX_MESSAGES } from '@/lib/config';
 
 const fonts = Object.keys(fontFamilyMap);
 const characterLimit = 100;
 const placeholder = `Your message here. Don't forget to say who you are :)`;
 
-export default function SignForm() {
+interface SignFormProps {
+  isFull?: boolean;
+}
+
+export default function SignForm({ isFull = false }: SignFormProps) {
   const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
   const textRef = useRef<HTMLTextAreaElement>(null);
 
@@ -37,6 +42,8 @@ export default function SignForm() {
         });
         if (response.ok) {
           setStatus('success');
+        } else if (response.status === 409) {
+          setStatus('full');
         } else {
           setStatus('failure');
         }
@@ -65,6 +72,29 @@ export default function SignForm() {
   const handleTextAreaFocus = () => {
     setIsFontMenuOpen(false);
   };
+
+  if (isFull || formik.status === 'full') {
+    return (
+      <div className={styles.container}>
+        <div className={styles.textAreaWrapper}>
+          <div className={styles.statusContainer}>
+            <div className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}>
+              This card is full
+            </div>
+            <div className={styles.fullMessage}>
+              All {MAX_MESSAGES} messages have been written, so it can&apos;t take any more.
+            </div>
+            <Link
+              href="/"
+              className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}
+            >
+              See the card &rarr;
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
