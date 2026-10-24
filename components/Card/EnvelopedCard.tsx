@@ -99,7 +99,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
       } else if (stage === 'open') {
         if (dy < -height() * 0.15 || vy < -600) advance();
         else pullY.set(0);
-      } else if (Math.abs(dx) > 50 || Math.abs(vx) > 500) {
+      } else if (Math.max(Math.abs(dx), Math.abs(dy)) > 50 || Math.max(Math.abs(vx), Math.abs(vy)) > 500) {
         advance();
       }
       dragX.set(0);

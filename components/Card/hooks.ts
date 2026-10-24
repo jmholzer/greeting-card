@@ -157,6 +157,13 @@ export function useGesture(options: GestureOptions) {
   }, []);
 
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
+    // Holding a key must not run several steps of the flow in one go.
+    if (event.repeat) {
+      if (event.key === 'Enter' || event.key === ' ' || event.key.startsWith('Arrow')) {
+        event.preventDefault();
+      }
+      return;
+    }
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       optionsRef.current.onTap();
