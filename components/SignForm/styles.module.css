@@ -162,6 +162,12 @@
     font-size: 25px;
 }
 
+.fullMessage {
+    font-size: 16px;
+    text-align: center;
+    padding: 10px 20px;
+}
+
 .failureMessage {
     font-size: 18px;
     color: red;
