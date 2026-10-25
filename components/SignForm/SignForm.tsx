@@ -16,6 +16,17 @@ const placeholder = `Your message here. Don't forget to say who you are :)`;
 // and only when the limit is close, so typing is not interrupted on every key.
 const COUNT_ANNOUNCE_FROM = 20;
 
+// Give up on a request that has not answered by then, so the form never hangs.
+const REQUEST_TIMEOUT_MS = 15000;
+
+function newRequestId(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  // crypto.randomUUID needs a secure context; getRandomValues does not.
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
+}
+
 function formatWait(seconds: number): string {
   if (seconds < 60) return 'a minute';
   const minutes = Math.ceil(seconds / 60);
@@ -32,6 +43,9 @@ export default function SignForm({ isFull = false }: SignFormProps) {
   const [errorMessage, setErrorMessage] = useState('');
   const [createdId, setCreatedId] = useState<number | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
+  // Reused when the same message is sent again after a failure, so the server
+  // can tell a retry from a new message and never saves it twice.
+  const attempt = useRef<{ id: string; text: string; fontFamily: string } | null>(null);
   const successRef = useRef<HTMLDivElement>(null);
 
   const formik = useFormik({
@@ -49,13 +63,22 @@ export default function SignForm({ isFull = false }: SignFormProps) {
     },
     onSubmit: async (values, { setSubmitting, setStatus }) => {
       setErrorMessage('');
+      const previous = attempt.current;
+      const sameMessage =
+        previous !== null && previous.text === values.text && previous.fontFamily === values.fontFamily;
+      const requestId = sameMessage ? previous.id : newRequestId();
+      attempt.current = { id: requestId, text: values.text, fontFamily: values.fontFamily };
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       try {
         const response = await fetch('/api/message', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(values),
+          body: JSON.stringify({ ...values, requestId }),
+          signal: controller.signal,
         });
         if (response.ok) {
           const body = await response.json().catch(() => null);
@@ -74,7 +97,12 @@ export default function SignForm({ isFull = false }: SignFormProps) {
           setStatus('failure');
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          setErrorMessage('Sending is taking too long. Check your connection and try again.');
+        }
         setStatus('failure');
+      } finally {
+        clearTimeout(timeout);
       }
       setSubmitting(false);
     },

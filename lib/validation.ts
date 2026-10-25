@@ -3,7 +3,11 @@ import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGE_LINES } from '@/lib/conf
 export interface ValidMessage {
   text: string;
   fontFamily: string;
+  /** Client-chosen key that makes a retried submit idempotent. */
+  requestId: string | null;
 }
+
+const REQUEST_ID = /^[A-Za-z0-9_-]{16,64}$/;
 
 export type ValidationResult =
   | { ok: true; data: ValidMessage }
@@ -29,7 +33,7 @@ export function validateMessage(body: unknown): ValidationResult {
     return { ok: false, message: 'Request body must be a JSON object.' };
   }
 
-  const { text, fontFamily } = body as Record<string, unknown>;
+  const { text, fontFamily, requestId } = body as Record<string, unknown>;
 
   if (typeof text !== 'string') {
     return { ok: false, message: '"text" must be a string.' };
@@ -52,5 +56,14 @@ export function validateMessage(body: unknown): ValidationResult {
     return { ok: false, message: '"fontFamily" is not an allowed font.' };
   }
 
-  return { ok: true, data: { text: cleaned, fontFamily } };
+  if (requestId !== undefined && requestId !== null) {
+    if (typeof requestId !== 'string' || !REQUEST_ID.test(requestId)) {
+      return { ok: false, message: '"requestId" must be 16 to 64 letters, digits, "-" or "_".' };
+    }
+  }
+
+  return {
+    ok: true,
+    data: { text: cleaned, fontFamily, requestId: typeof requestId === 'string' ? requestId : null },
+  };
 }

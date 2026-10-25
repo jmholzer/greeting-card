@@ -28,6 +28,23 @@ function errorResponse(
   return Response.json({ error, message }, { status, headers });
 }
 
+function messageResponse(
+  message: { id: number; text: string; fontFamily: string; createdAt: Date },
+  status: number,
+) {
+  return Response.json(
+    {
+      message: {
+        id: message.id,
+        text: message.text,
+        fontFamily: message.fontFamily,
+        createdAt: message.createdAt.toISOString(),
+      },
+    },
+    { status },
+  );
+}
+
 function unavailableResponse(retryAfterSeconds: number) {
   return errorResponse(503, 'unavailable', 'Please try again in a moment.', {
     'Retry-After': String(retryAfterSeconds),
@@ -90,7 +107,19 @@ export async function POST(request: Request) {
   if (!validation.ok) {
     return rejectInvalid(400, 'invalid_message', validation.message);
   }
-  const { text, fontFamily } = validation.data;
+  const { text, fontFamily, requestId } = validation.data;
+
+  // A retry of a submit that already went through gets the saved message back,
+  // without using any of the rate limit allowance.
+  if (requestId) {
+    try {
+      const existing = await prisma.message.findUnique({ where: { requestId } });
+      if (existing) return messageResponse(existing, 200);
+    } catch (error) {
+      console.error('Error checking request id:', error);
+      return errorResponse(500, 'server_error', 'Failed to save message.');
+    }
+  }
 
   const rateLimit = await checkRateLimit(request);
   if (rateLimit.unavailable) return unavailableResponse(rateLimit.retryAfterSeconds);
@@ -100,28 +129,25 @@ export async function POST(request: Request) {
   if (Math.random() < CLEANUP_SAMPLE_RATE) after(deleteExpiredRateLimits);
 
   try {
-    const message = await prisma.$transaction(async (tx) => {
+    const saved = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${CREATE_MESSAGE_LOCK_ID})`;
+
+      // Another request with the same id may have won while this one waited for the lock.
+      if (requestId) {
+        const existing = await tx.message.findUnique({ where: { requestId } });
+        if (existing) return { message: existing, created: false };
+      }
 
       const count = await tx.message.count();
       if (count >= MAX_MESSAGES) {
         throw new CardFullError();
       }
 
-      return tx.message.create({ data: { text, fontFamily } });
+      const created = await tx.message.create({ data: { text, fontFamily, requestId } });
+      return { message: created, created: true };
     });
 
-    return Response.json(
-      {
-        message: {
-          id: message.id,
-          text: message.text,
-          fontFamily: message.fontFamily,
-          createdAt: message.createdAt.toISOString(),
-        },
-      },
-      { status: 201 },
-    );
+    return messageResponse(saved.message, saved.created ? 201 : 200);
   } catch (error) {
     if (error instanceof CardFullError) {
       return errorResponse(

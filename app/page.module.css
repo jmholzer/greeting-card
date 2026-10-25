@@ -10,3 +10,29 @@
 .container * {
     transform-style: preserve-3d;
 }
+
+.loadError {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 32px;
+    border-radius: 12px;
+    background: #FBF7F0;
+    color: #27221F;
+    font-size: 18px;
+    text-align: center;
+}
+
+.loadError p {
+    margin: 0;
+}
+
+.loadError a {
+    padding: 10px 24px;
+    border-radius: 999px;
+    background: #27221F;
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+}
