@@ -5,7 +5,7 @@ import { isSameOrigin } from '@/lib/request';
 import { editTokenMatches, getBearerToken, hashEditToken } from '@/lib/editToken';
 import { MESSAGE_LAYOUT_LOCK_ID } from '@/lib/config';
 import { GEOMETRY_MESSAGES, overlapsAny } from '@/lib/geometry';
-import { getMessages } from '@/utils/messages';
+import { getMessages, pinLegacyBoxes } from '@/utils/messages';
 import type { Message } from '@/utils/messages';
 
 export const dynamic = 'force-dynamic';
@@ -133,6 +133,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if (geometry) {
         // Changes to the layout run one at a time, so two messages can never end up on the same spot.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(${MESSAGE_LAYOUT_LOCK_ID})`;
+        await pinLegacyBoxes(tx);
         const others = (await getMessages(tx)).filter((message) => message.id !== auth.id);
         if (overlapsAny(geometry, others.map((message) => message.box))) {
           throw new SpotTakenError(others);
@@ -196,8 +197,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (limited) return limited;
 
   try {
-    const result = await prisma.message.deleteMany({
-      where: { id: auth.id, editTokenHash: hashEditToken(auth.token) },
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${MESSAGE_LAYOUT_LOCK_ID})`;
+      await pinLegacyBoxes(tx);
+      return tx.message.deleteMany({
+        where: { id: auth.id, editTokenHash: hashEditToken(auth.token) },
+      });
     });
     if (result.count === 0) return notFound();
     return Response.json({ deleted: auth.id }, { headers: NO_STORE });

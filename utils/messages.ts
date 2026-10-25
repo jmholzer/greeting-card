@@ -96,3 +96,30 @@ export async function getMessages(
   });
   return toMessages(rows);
 }
+
+/**
+ * Writes the computed place of every message that still lacks one into the database.
+ * Removing or moving one message must not change where the others sit, so layout changes
+ * call this first, inside the layout lock. Messages that already have a place are untouched.
+ */
+export async function pinLegacyBoxes(db: Pick<Prisma.TransactionClient, 'message'>): Promise<void> {
+  const rows = await db.message.findMany({ orderBy: MESSAGE_ORDER, select: MESSAGE_SELECT });
+  const missing = rows.filter((row) => storedBox(row) === null);
+  if (missing.length === 0) return;
+  const boxes = legacyBoxes(missing.map((row) => row.id));
+  for (const row of missing) {
+    const box = boxes.get(row.id);
+    if (!box) continue;
+    await db.message.update({
+      where: { id: row.id },
+      data: {
+        placeX: box.x,
+        placeY: box.y,
+        placeWidth: box.width,
+        placeHeight: box.height,
+        placeRotation: box.rotation,
+        updatedAt: row.updatedAt,
+      },
+    });
+  }
+}
