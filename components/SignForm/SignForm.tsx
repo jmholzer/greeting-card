@@ -65,6 +65,7 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
   // can tell a retry from a new message and never saves it twice.
   const attempt = useRef<{ id: string; text: string; fontFamily: string; box: string } | null>(null);
   const successRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<(() => Promise<Geometry>) | null>(null);
 
   // Another message took the chosen spot. Show the card as it is now and move the box to the
   // nearest free spot, so the signer only has to check it and send again. Nothing typed is lost.
@@ -87,6 +88,7 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
   const saveEdit = async (
     values: { text: string; fontFamily: string; hp_extra: string },
     chosen: Geometry,
+    drawn: Geometry,
     setFieldValue: (field: string, value: string, validate?: boolean) => void,
     setStatus: (status: string) => void,
     id: number,
@@ -107,7 +109,7 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
         setStatus('success');
       } else if (response.status === 409) {
         const body = await response.json().catch(() => null);
-        if (Array.isArray(body?.messages)) respotAfterConflict(body.messages, chosen, setStatus);
+        if (Array.isArray(body?.messages)) respotAfterConflict(body.messages, drawn, setStatus);
         else setStatus('failure');
       } else if (response.status === 404) {
         forgetOwnedMessage(id);
@@ -175,13 +177,15 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
         return;
       }
       setPlaceNotice('');
+      // What is saved is the footprint of the text, not the box that was drawn.
+      const footprint = (await measureRef.current?.()) ?? box;
       if (editing) {
-        await saveEdit(values, box, setFieldValue, setStatus, editing.id);
+        await saveEdit(values, footprint, box, setFieldValue, setStatus, editing.id);
         setSubmitting(false);
         return;
       }
       const previous = attempt.current;
-      const boxKey = JSON.stringify(box);
+      const boxKey = JSON.stringify(footprint);
       const sameMessage =
         previous !== null &&
         previous.text === values.text &&
@@ -198,7 +202,7 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ ...values, requestId, geometry: box }),
+          body: JSON.stringify({ ...values, requestId, geometry: footprint }),
           signal: controller.signal,
         });
         if (response.ok) {
@@ -406,6 +410,7 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
           onChange={setBox}
           disabled={submitting}
           notice={placeNotice}
+          measureRef={measureRef}
           actions={
             <>
               {failed && !submitting && (

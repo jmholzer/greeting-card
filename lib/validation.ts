@@ -83,7 +83,7 @@ export function validateMessage(body: unknown): ValidationResult {
     const parsed = parseGeometry(geometry);
     if (!parsed.ok) return { ok: false, message: parsed.message };
     // Rules that hold wherever the box goes. Overlap depends on the other messages, so it is checked later.
-    const problem = checkGeometry(parsed.data);
+    const problem = checkGeometry(parsed.data, [], cleaned);
     if (problem) return { ok: false, message: GEOMETRY_MESSAGES[problem] };
     box = parsed.data;
   }

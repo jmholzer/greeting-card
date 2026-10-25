@@ -5,6 +5,9 @@
 // x and y are the centre, width and height are the size, rotation is in degrees.
 // Rotation and overlap are worked out in a space where the surface is
 // SURFACE_ASPECT wide and 1 high, so rotated boxes keep their true shape.
+//
+// The box stored for a message is its footprint: the tight bounds of the rendered text plus
+// a small padding. It is also the area other signers may not overlap.
 
 export interface Geometry {
   /** Centre, as a fraction of the surface width (0 to 1). */
@@ -28,14 +31,42 @@ export const MAX_BOX_AREA = 1 / 16;
 // Sizes the editor uses are kept a little under the limit, so rounding can never push one over it.
 export const MAX_BOX_AREA_EDITOR = MAX_BOX_AREA * 0.998;
 
-/** Smallest box, as fractions of the surface, that still leaves a message legible. */
-export const MIN_BOX_WIDTH = 0.12;
-export const MIN_BOX_HEIGHT = 0.1;
+/** Smallest box a message may have, as fractions of the surface. Whether the text is legible is checked separately. */
+export const MIN_BOX_WIDTH = 0.02;
+export const MIN_BOX_HEIGHT = 0.02;
+
+/** A box of this size is what must still fit for the card to count as open for signing. */
+export const SIGN_MIN_WIDTH = 0.1;
+export const SIGN_MIN_HEIGHT = 0.07;
+
+/**
+ * The footprint must give every character at least this share of the surface, or the text
+ * would be too small to read. The server cannot measure fonts, so this is its plausibility check.
+ */
+export const MIN_AREA_PER_CHARACTER = 6e-5;
+
+/**
+ * The footprint must also be wide enough to hold the longest word without splitting it, at a
+ * readable size. This much of the surface width per letter, a little under the width a letter
+ * has at the smallest readable size.
+ */
+export const MIN_WIDTH_PER_LETTER = 0.0045;
+
+/**
+ * The space kept around the text inside its footprint, on each side. Two messages can
+ * sit with their footprints touching, so their text is twice this far apart: about 5px.
+ * Stored as a fraction of the surface height, so it is worked out against a reference
+ * card of REFERENCE_SURFACE_HEIGHT pixels. A phone card (about 235px high) ends up near
+ * 3px and a desktop card (about 600px high) near 8px.
+ */
+export const FOOTPRINT_PADDING_PX = 2.5;
+export const REFERENCE_SURFACE_HEIGHT = 380;
+export const FOOTPRINT_PADDING = FOOTPRINT_PADDING_PX / REFERENCE_SURFACE_HEIGHT;
 
 export const MAX_ROTATION = 30;
 
-// Free space kept between two boxes, in surface heights.
-export const BOX_GAP = 0.004;
+// Free space kept between two footprints, in surface heights. The padding inside each footprint is the real gap.
+export const BOX_GAP = 0;
 
 const EPSILON = 1e-9;
 
@@ -141,10 +172,29 @@ export function overlapsAny(box: Geometry, others: Geometry[]): boolean {
   return others.some((other) => boxesOverlap(box, other));
 }
 
-export type GeometryProblem = 'size' | 'area' | 'bounds' | 'overlap';
+export type GeometryProblem = 'size' | 'area' | 'small' | 'bounds' | 'overlap';
 
-/** Checks the rules a box must meet whatever else is on the card, then (if given) overlap with other boxes. */
-export function checkGeometry(box: Geometry, others: Geometry[] = []): GeometryProblem | null {
+/** How many characters count towards the legibility rule: everything but whitespace. */
+export function countCharacters(text: string): number {
+  return text.replace(/\s/g, '').length;
+}
+
+/** Letters in the longest run of characters without whitespace. */
+export function longestWord(text: string): number {
+  let longest = 0;
+  for (const word of text.split(/\s+/)) longest = Math.max(longest, [...word].length);
+  return longest;
+}
+
+/**
+ * Checks the rules a box must meet whatever else is on the card, then (if given) overlap
+ * with other boxes. With `text`, a box too small for that many characters is refused too.
+ */
+export function checkGeometry(
+  box: Geometry,
+  others: Geometry[] = [],
+  text?: string,
+): GeometryProblem | null {
   if (
     box.width < MIN_BOX_WIDTH - EPSILON ||
     box.height < MIN_BOX_HEIGHT - EPSILON ||
@@ -155,6 +205,13 @@ export function checkGeometry(box: Geometry, others: Geometry[] = []): GeometryP
     return 'size';
   }
   if (box.width * box.height > MAX_BOX_AREA + EPSILON) return 'area';
+  if (
+    text !== undefined &&
+    (box.width * box.height < countCharacters(text) * MIN_AREA_PER_CHARACTER ||
+      box.width < longestWord(text) * MIN_WIDTH_PER_LETTER)
+  ) {
+    return 'small';
+  }
   if (!isInside(box)) return 'bounds';
   if (overlapsAny(box, others)) return 'overlap';
   return null;
@@ -163,6 +220,7 @@ export function checkGeometry(box: Geometry, others: Geometry[] = []): GeometryP
 export const GEOMETRY_MESSAGES: Record<GeometryProblem, string> = {
   size: 'The message box is too small, too large or turned too far.',
   area: 'The message box is bigger than one sixteenth of the card.',
+  small: 'The message is too small to read.',
   bounds: 'The message box must stay on the card.',
   overlap: 'That spot is taken. Please pick another one.',
 };
@@ -232,7 +290,7 @@ export function findFreeSpot(
     const spot = bestSpot(others, fitted.width, fitted.height, SCAN_STEP, near);
     if (spot) return spot;
   }
-  return bestSpot(others, MIN_BOX_WIDTH, MIN_BOX_HEIGHT, FIT_STEP, near);
+  return bestSpot(others, SIGN_MIN_WIDTH, SIGN_MIN_HEIGHT, FIT_STEP, near);
 }
 
 // Positions to try along one axis: the middle first, then outwards in both directions.
@@ -288,7 +346,7 @@ function bestSpot(
 
 /** True when a smallest box still fits somewhere; false means the card is full. */
 export function hasRoomForMinimumBox(others: Geometry[]): boolean {
-  const base: Geometry = { x: 0.5, y: 0.5, width: MIN_BOX_WIDTH, height: MIN_BOX_HEIGHT, rotation: 0 };
+  const base: Geometry = { x: 0.5, y: 0.5, width: SIGN_MIN_WIDTH, height: SIGN_MIN_HEIGHT, rotation: 0 };
   const half = halfExtents(base);
   for (const y of scanPositions(half.y, FIT_STEP)) {
     for (const x of scanPositions(half.x, FIT_STEP)) {

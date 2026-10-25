@@ -34,6 +34,14 @@
     outline: 1px dashed rgba(39, 34, 31, 0.22);
 }
 
+.footprint {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px solid rgba(230, 107, 30, 0.85);
+    background: rgba(230, 107, 30, 0.12);
+    pointer-events: none;
+}
+
 .card .draft {
     overflow: visible;
     background: rgba(255, 255, 255, 0.6);

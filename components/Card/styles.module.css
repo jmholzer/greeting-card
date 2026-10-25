@@ -208,15 +208,19 @@
 .message {
     position: absolute;
     box-sizing: border-box;
+}
+
+.messageArea {
+    position: absolute;
+    inset: 0;
+}
+
+/* Centres the text block inside the padding. The text itself is laid out by fitText.module.css. */
+.messageText {
+    position: absolute;
     display: flex;
+    flex-direction: column;
     justify-content: center;
-    align-items: center;
-    text-align: center;
-    word-wrap: break-word;
-    white-space: pre-line;
-    padding: 2px 3px;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .highlight {

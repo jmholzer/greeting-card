@@ -53,15 +53,27 @@ const DELETE_TIMEOUT_MS = 15000;
 
 const pullSpring = { stiffness: 260, damping: 28 };
 
-// A message box narrower or shorter than this (in px) is too small to read, so tapping it enlarges it.
+// Text drawn smaller than this (in px) is too small to read, so tapping it enlarges it.
 // It depends on the card's size, not the screen width, so landscape phones work too.
-const ENLARGE_BELOW_WIDTH = 120;
-const ENLARGE_BELOW_HEIGHT = 40;
+const ENLARGE_BELOW_FONT_PX = 13;
+
+// A message hugs its text, so a fingertip is allowed to be this far (in px) outside it.
+const TAP_SLOP = 8;
+
+function renderedFontSize(el: HTMLElement): number {
+  const text = el.querySelector<HTMLElement>('[data-message-text]');
+  return text ? parseFloat(getComputedStyle(text).fontSize) : Infinity;
+}
 
 /** Whether a screen point is on a message box, allowing for the box being turned. */
 function isOnMessage(el: HTMLElement, point: { x: number; y: number }): boolean {
   const rect = el.getBoundingClientRect();
-  if (point.x < rect.left || point.x > rect.right || point.y < rect.top || point.y > rect.bottom) {
+  if (
+    point.x < rect.left - TAP_SLOP ||
+    point.x > rect.right + TAP_SLOP ||
+    point.y < rect.top - TAP_SLOP ||
+    point.y > rect.bottom + TAP_SLOP
+  ) {
     return false;
   }
   const matrix = new DOMMatrix(getComputedStyle(el).transform);
@@ -73,7 +85,10 @@ function isOnMessage(el: HTMLElement, point: { x: number; y: number }): boolean 
   const dy = point.y - (rect.top + rect.height / 2);
   const localX = dx * Math.cos(angle) + dy * Math.sin(angle);
   const localY = -dx * Math.sin(angle) + dy * Math.cos(angle);
-  return Math.abs(localX) <= (el.offsetWidth * scale) / 2 && Math.abs(localY) <= (el.offsetHeight * scale) / 2;
+  return (
+    Math.abs(localX) <= (el.offsetWidth * scale) / 2 + TAP_SLOP &&
+    Math.abs(localY) <= (el.offsetHeight * scale) / 2 + TAP_SLOP
+  );
 }
 
 export default function EnvelopedCard({ messages, highlightId = null }: EnvelopedCardProps) {
@@ -224,7 +239,7 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
       const cell = [...document.querySelectorAll<HTMLElement>('[data-message-id]')].find((el) =>
         isOnMessage(el, point),
       );
-      if (cell && (cell.offsetWidth < ENLARGE_BELOW_WIDTH || cell.offsetHeight < ENLARGE_BELOW_HEIGHT)) {
+      if (cell && renderedFontSize(cell) < ENLARGE_BELOW_FONT_PX) {
         setEnlargedId(Number(cell.dataset.messageId));
         return;
       }

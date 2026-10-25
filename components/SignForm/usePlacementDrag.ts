@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { KeyboardEvent, PointerEvent, RefObject } from 'react';
 
-import { checkGeometry, clampInside, clampSize, MAX_ROTATION, roundGeometry } from '@/lib/geometry';
-import type { Geometry } from '@/lib/geometry';
+import {
+  checkGeometry,
+  clampInside,
+  clampSize,
+  MAX_ROTATION,
+  roundGeometry,
+} from '@/lib/geometry';
+import type { Geometry, GeometryProblem } from '@/lib/geometry';
 
 const KEY_STEP = 0.01;
 const KEY_STEP_LARGE = 0.05;
@@ -23,12 +29,16 @@ interface Options {
   /** Gets focus when a drag starts, so the arrow keys work right after. */
   focusTarget: RefObject<HTMLElement | null>;
   box: Geometry;
-  /** Boxes of the messages already on the card. */
+  /** The message, which decides how small its footprint may be. */
+  text: string;
+  /** The tight footprint (text plus padding) of a box drawn here. That is what may not touch other messages. */
+  footprint: (box: Geometry) => Geometry;
+  /** Footprints of the messages already on the card. */
   obstacles: Geometry[];
   disabled: boolean;
   onChange: (box: Geometry) => void;
-  /** A change was refused because it would touch another message. */
-  onBlocked: () => void;
+  /** A change was refused, with the rule it would have broken. */
+  onBlocked: (problem: GeometryProblem) => void;
 }
 
 const toDegrees = (radians: number) => (radians * 180) / Math.PI;
@@ -51,16 +61,19 @@ export function usePlacementDrag(options: Options) {
 
   /** Applies the first candidate that is a valid spot. Returns whether one was. */
   const apply = useCallback((...candidates: Geometry[]): boolean => {
-    const { obstacles, onChange, onBlocked } = optionsRef.current;
+    const { obstacles, footprint, text, onChange, onBlocked } = optionsRef.current;
+    let problem: GeometryProblem | null = null;
     for (const candidate of candidates) {
       const rounded = roundGeometry(candidate);
-      if (checkGeometry(rounded, obstacles) === null) {
+      problem =
+        checkGeometry(rounded) ?? checkGeometry(footprint(rounded), obstacles, text);
+      if (problem === null) {
         boxRef.current = rounded;
         onChange(rounded);
         return true;
       }
     }
-    onBlocked();
+    if (problem) onBlocked(problem);
     return false;
   }, []);
 

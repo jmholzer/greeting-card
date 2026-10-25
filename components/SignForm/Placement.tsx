@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { MutableRefObject, ReactNode } from 'react';
 import styles from './placement.module.css';
 
-import MessageBox from '@/components/Card/MessageBox';
+import MessageBox, { boxStyle } from '@/components/Card/MessageBox';
+import { footprintOf, useFontsVersion, whenFontReady } from '@/components/Card/textFit';
+import { fontFamilyMap } from '@/app/fonts';
 import {
   clampInside,
   MAX_BOX_AREA_EDITOR,
@@ -12,11 +14,16 @@ import {
   MIN_BOX_HEIGHT,
   MIN_BOX_WIDTH,
 } from '@/lib/geometry';
-import type { Geometry } from '@/lib/geometry';
+import { GEOMETRY_MESSAGES } from '@/lib/geometry';
+import type { Geometry, GeometryProblem } from '@/lib/geometry';
 import { usePlacementDrag } from '@/components/SignForm/usePlacementDrag';
 import type { Message } from '@/utils/messages';
 
 const BLOCKED_NOTICE = 'That spot is taken by another message.';
+const BLOCKED_NOTICES: Partial<Record<GeometryProblem, string>> = {
+  small: GEOMETRY_MESSAGES.small,
+  overlap: BLOCKED_NOTICE,
+};
 const HELP =
   'Drag your message where you want it. Turn it with the round handle and resize it with the square one.';
 const NOTICE_MS = 2500;
@@ -33,6 +40,8 @@ interface PlacementProps {
   notice?: string;
   /** Buttons shown next to the preview, below it on a portrait screen. */
   actions: ReactNode;
+  /** Filled in with a function that returns the footprint to save, measured once the font is ready. */
+  measureRef: MutableRefObject<(() => Promise<Geometry>) | null>;
 }
 
 /**
@@ -49,19 +58,62 @@ export default function Placement({
   disabled = false,
   notice = '',
   actions,
+  measureRef,
 }: PlacementProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const draftRef = useRef<HTMLDivElement>(null);
   const [blocked, setBlocked] = useState('');
+  const fontClass = fontFamilyMap[fontFamily] ?? '';
+  const fontsVersion = useFontsVersion();
+
+  const surfaceSize = useCallback(() => {
+    const rect = surfaceRef.current?.getBoundingClientRect();
+    return { width: rect?.width ?? 0, height: rect?.height ?? 0 };
+  }, []);
+
+  const footprint = useCallback(
+    (candidate: Geometry) => {
+      const size = surfaceSize();
+      return size.width > 0 && size.height > 0 ? footprintOf(candidate, text, fontClass, size) : candidate;
+    },
+    [surfaceSize, text, fontClass],
+  );
+
+  useEffect(() => {
+    measureRef.current = async () => {
+      await whenFontReady(text, fontClass);
+      return footprint(box);
+    };
+    return () => {
+      measureRef.current = null;
+    };
+  }, [measureRef, text, fontClass, footprint, box]);
+
+  const [surface, setSurface] = useState<{ width: number; height: number } | null>(null);
+  useEffect(() => {
+    const element = surfaceRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => setSurface(surfaceSize()));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [surfaceSize]);
+  const shownFootprint = useMemo(
+    () => (surface?.width && surface.height ? footprintOf(box, text, fontClass, surface) : null),
+    // fontsVersion is not read, but a loaded font changes the footprint.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [surface, box, text, fontClass, fontsVersion],
+  );
 
   const { apply, onKeyDown, move, rotate, resize } = usePlacementDrag({
     surface: surfaceRef,
     focusTarget: draftRef,
     box,
+    text,
+    footprint,
     obstacles: others.map((message) => message.box),
     disabled,
     onChange,
-    onBlocked: () => setBlocked(BLOCKED_NOTICE),
+    onBlocked: (problem) => setBlocked(BLOCKED_NOTICES[problem] ?? BLOCKED_NOTICE),
   });
 
   useEffect(() => {
@@ -103,8 +155,8 @@ export default function Placement({
     </div>
   );
 
-  const maxWidthPercent = Math.floor((MAX_BOX_AREA_EDITOR / MIN_BOX_HEIGHT) * 100);
-  const maxHeightPercent = Math.floor((MAX_BOX_AREA_EDITOR / MIN_BOX_WIDTH) * 100);
+  const maxWidthPercent = Math.min(100, Math.floor((MAX_BOX_AREA_EDITOR / MIN_BOX_HEIGHT) * 100));
+  const maxHeightPercent = Math.min(100, Math.floor((MAX_BOX_AREA_EDITOR / MIN_BOX_WIDTH) * 100));
 
   return (
     <div className={styles.layout}>
@@ -143,6 +195,9 @@ export default function Placement({
               {...resize}
             />
           </MessageBox>
+          {shownFootprint && (
+            <div className={styles.footprint} style={boxStyle(shownFootprint)} aria-hidden />
+          )}
         </div>
       </div>
 

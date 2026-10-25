@@ -48,7 +48,7 @@
 
 View the card at the main route (`/`).
 
-Sign the card at `/sign`. Write a message, then place it anywhere on the card. Each message can be rotated up to 30 degrees either way and covers at most 1/16 of the card, and messages cannot overlap. The card is full when no box of the minimum size fits. `MAX_MESSAGES` (64) in `lib/config.ts` is only a backstop. The shared rules live in `lib/geometry.ts` and are enforced on the server too. Messages written before this feature get a fixed fallback placement.
+Sign the card at `/sign`. Write a message, then place it anywhere on the card. Each message can be rotated up to 30 degrees either way and covers at most 1/16 of the card, and messages cannot overlap. What is stored is the footprint of the finished text: its tight bounds plus a small padding (about 5px, defined as a fraction of a reference card height in `lib/geometry.ts`), so a short message drawn in a large box only keeps the space around its letters. The browser measures it after the font has loaded and the server checks the result. The card is full when no box of the minimum size fits. `MAX_MESSAGES` (64) in `lib/config.ts` is only a backstop. The shared rules live in `lib/geometry.ts` and are enforced on the server too. Messages written before this feature get a fixed fallback placement.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
