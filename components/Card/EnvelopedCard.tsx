@@ -17,7 +17,7 @@ import styles from './styles.module.css';
 import Card from '@/components/Card/Card';
 import OwnerControls from '@/components/Card/OwnerControls';
 import { useDeviceTilt, useGesture } from '@/components/Card/hooks';
-import { dominantOffset, flipDistance, flipProgress, resist } from '@/components/Card/flipDrag';
+import { dragDirection, flipDistance, flipProgress, resist } from '@/components/Card/flipDrag';
 import { useHints } from '@/components/Card/useHints';
 import type { HintStep } from '@/components/Card/useHints';
 import { fontFamilyMap } from '@/app/fonts';
@@ -80,6 +80,8 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
   const pullYSmooth = useSpring(pullY, pullSpring);
   const dragXSmooth = useSpring(dragX, pullSpring);
   const pull = useMotionValue(0);
+  // Fixed when a drag starts, so the preview never jumps to the other side mid-drag.
+  const pullDirection = useRef<1 | -1 | null>(null);
   const pullSmooth = useSpring(pull, pullSpring);
   // True while the drag is far enough that letting go would flip the card.
   const [committed, setCommitted] = useState(false);
@@ -232,7 +234,8 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
       if (clear) {
         dragX.set(dx);
         const progress = flipProgress(dx, dy, flipDistance(controllerWidth()));
-        pull.set(Math.sign(dominantOffset(dx, dy)) * resist(progress));
+        pullDirection.current ??= dragDirection(dx, dy);
+        pull.set(pullDirection.current * resist(progress));
         setCommitted(progress >= 1);
       }
     },
@@ -250,6 +253,7 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
       }
       dragX.set(0);
       pull.set(0);
+      pullDirection.current = null;
       setCommitted(false);
     },
   });
