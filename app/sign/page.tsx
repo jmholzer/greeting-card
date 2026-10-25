@@ -1,9 +1,13 @@
+import type { Viewport } from 'next';
 import styles from '../page.module.css';
 import SignForm from '@/components/SignForm/SignForm';
 import prisma from '@/lib/prisma';
 import { CARD_BACKGROUND_COLOR, MAX_MESSAGES } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
+
+// Android Chrome then resizes the page for the on-screen keyboard, so the form stays visible.
+export const viewport: Viewport = { interactiveWidget: 'resizes-content' };
 
 async function isCardFull(): Promise<boolean> {
   try {

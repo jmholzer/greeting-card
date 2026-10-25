@@ -16,6 +16,14 @@ const placeholder = `Your message here. Don't forget to say who you are :)`;
 // and only when the limit is close, so typing is not interrupted on every key.
 const COUNT_ANNOUNCE_FROM = 20;
 
+function formatWait(seconds: number): string {
+  if (seconds < 60) return 'a minute';
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  const hours = Math.ceil(minutes / 60);
+  return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+}
+
 interface SignFormProps {
   isFull?: boolean;
 }
@@ -53,7 +61,12 @@ export default function SignForm({ isFull = false }: SignFormProps) {
           setStatus('full');
         } else {
           const body = await response.json().catch(() => null);
-          setErrorMessage(typeof body?.message === 'string' ? body.message : '');
+          const wait = Number(response.headers.get('Retry-After'));
+          if (response.status === 429 && wait > 0) {
+            setErrorMessage(`Too many messages from your network. Please try again in ${formatWait(wait)}.`);
+          } else {
+            setErrorMessage(typeof body?.message === 'string' ? body.message : '');
+          }
           setStatus('failure');
         }
       } catch (error) {
@@ -70,10 +83,20 @@ export default function SignForm({ isFull = false }: SignFormProps) {
   }, [setFieldValue]);
 
   useEffect(() => {
-    if (textRef.current) {
-      textRef.current.focus();
-    }
+    // On a phone, focusing here would raise the keyboard before the visitor asked for it.
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+    textRef.current?.focus();
   }, []);
+
+  const [copied, setCopied] = useState(false);
+  const copyDraft = async () => {
+    try {
+      await navigator.clipboard.writeText(formik.values.text);
+      setCopied(true);
+    } catch {
+      // The text is also selectable on screen, so copying by hand still works.
+    }
+  };
 
   const succeeded = formik.status === 'success';
   useEffect(() => {
@@ -88,9 +111,10 @@ export default function SignForm({ isFull = false }: SignFormProps) {
   const errorText = errorMessage || 'Failed to send message. Please try again.';
 
   if (isFull || formik.status === 'full') {
+    const draft = formik.values.text.trim();
     return (
       <div className={styles.container}>
-        <div className={styles.textAreaWrapper}>
+        <div className={`${styles.textAreaWrapper} ${draft ? styles.fullWithDraft : ''}`}>
           <div className={styles.statusContainer} role="status">
             <div className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}>
               This card is full
@@ -98,6 +122,15 @@ export default function SignForm({ isFull = false }: SignFormProps) {
             <div className={styles.fullMessage}>
               All {MAX_MESSAGES} messages have been written, so it can&apos;t take any more.
             </div>
+            {draft && (
+              <div className={styles.draft}>
+                <p className={styles.draftLabel}>Your message was not saved:</p>
+                <p className={`${styles.draftText} ${fontFamilyMap[formik.values.fontFamily]}`}>{draft}</p>
+                <button type="button" className={styles.copyButton} onClick={copyDraft}>
+                  {copied ? 'Copied' : 'Copy message'}
+                </button>
+              </div>
+            )}
             <Link
               href="/"
               className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}
@@ -169,6 +202,7 @@ export default function SignForm({ isFull = false }: SignFormProps) {
             </span>
             <FontPicker
               fonts={fonts}
+              previewText={formik.values.text}
               value={formik.values.fontFamily}
               onChange={(font) => formik.setFieldValue('fontFamily', font)}
               disabled={submitting}
