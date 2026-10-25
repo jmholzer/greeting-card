@@ -198,7 +198,7 @@ export async function POST(request: Request) {
         if (overlapsAny(box, taken)) throw new SpotTakenError(current);
       } else {
         // A client that sent no spot (an old tab, or a script) gets a free one.
-        box = findFreeSpot(taken, defaultSize(text.length));
+        box = findFreeSpot(taken, defaultSize(text.length), undefined, text);
         if (!box) throw new CardFullError();
       }
 

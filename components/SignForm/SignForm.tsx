@@ -69,12 +69,18 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
 
   // Another message took the chosen spot. Show the card as it is now and move the box to the
   // nearest free spot, so the signer only has to check it and send again. Nothing typed is lost.
-  const respotAfterConflict = (current: Message[], chosen: Geometry, setStatus: (status: string) => void) => {
+  const respotAfterConflict = (
+    current: Message[],
+    chosen: Geometry,
+    setStatus: (status: string) => void,
+    text: string,
+  ) => {
     setOthers(current);
     const spot = findFreeSpot(
       current.map((message) => message.box),
       { width: chosen.width, height: chosen.height },
       chosen,
+      text,
     );
     if (!spot) {
       setStatus('full');
@@ -109,7 +115,7 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
         setStatus('success');
       } else if (response.status === 409) {
         const body = await response.json().catch(() => null);
-        if (Array.isArray(body?.messages)) respotAfterConflict(body.messages, drawn, setStatus);
+        if (Array.isArray(body?.messages)) respotAfterConflict(body.messages, drawn, setStatus, values.text);
         else setStatus('failure');
       } else if (response.status === 404) {
         forgetOwnedMessage(id);
@@ -160,6 +166,8 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
           start = findFreeSpot(
             others.map((message) => message.box),
             defaultSize(sanitizeText(values.text).length),
+            undefined,
+            sanitizeText(values.text),
           );
           if (!start) {
             setStatus('full');
@@ -220,7 +228,7 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
         } else if (response.status === 409) {
           const body = await response.json().catch(() => null);
           if (body?.error === 'spot_taken' && Array.isArray(body.messages)) {
-            respotAfterConflict(body.messages, box, setStatus);
+            respotAfterConflict(body.messages, box, setStatus, values.text);
           } else {
             setStatus('full');
           }

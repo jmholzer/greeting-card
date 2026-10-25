@@ -13,6 +13,7 @@ import {
   MAX_ROTATION,
   MIN_BOX_HEIGHT,
   MIN_BOX_WIDTH,
+  minimumSizeForText,
 } from '@/lib/geometry';
 import { GEOMETRY_MESSAGES } from '@/lib/geometry';
 import type { Geometry, GeometryProblem } from '@/lib/geometry';
@@ -155,8 +156,11 @@ export default function Placement({
     </div>
   );
 
-  const maxWidthPercent = Math.min(100, Math.floor((MAX_BOX_AREA_EDITOR / MIN_BOX_HEIGHT) * 100));
-  const maxHeightPercent = Math.min(100, Math.floor((MAX_BOX_AREA_EDITOR / MIN_BOX_WIDTH) * 100));
+  // The box may not shrink below what this text needs, and widening gives way on the height
+  // (and the other way round) so the area limit never blocks reaching a readable size.
+  const floor = minimumSizeForText(text) ?? { width: MIN_BOX_WIDTH, height: MIN_BOX_HEIGHT };
+  const maxWidthPercent = Math.min(100, Math.floor((MAX_BOX_AREA_EDITOR / floor.height) * 100));
+  const maxHeightPercent = Math.min(100, Math.floor((MAX_BOX_AREA_EDITOR / floor.width) * 100));
 
   return (
     <div className={styles.layout}>
@@ -224,19 +228,27 @@ export default function Placement({
             'place-width',
             'Width',
             box.width * 100,
-            Math.ceil(MIN_BOX_WIDTH * 100),
+            Math.ceil(floor.width * 100),
             maxWidthPercent,
             'percent of the card width',
-            (b, v) => clampInside({ ...b, width: Math.min(v / 100, MAX_BOX_AREA_EDITOR / b.height) }),
+            (b, v) => {
+              const width = Math.min(Math.max(v / 100, floor.width), MAX_BOX_AREA_EDITOR / floor.height);
+              const height = Math.max(floor.height, Math.min(b.height, MAX_BOX_AREA_EDITOR / width));
+              return clampInside({ ...b, width, height });
+            },
           )}
           {slider(
             'place-height',
             'Height',
             box.height * 100,
-            Math.ceil(MIN_BOX_HEIGHT * 100),
+            Math.ceil(floor.height * 100),
             maxHeightPercent,
             'percent of the card height',
-            (b, v) => clampInside({ ...b, height: Math.min(v / 100, MAX_BOX_AREA_EDITOR / b.width) }),
+            (b, v) => {
+              const height = Math.min(Math.max(v / 100, floor.height), MAX_BOX_AREA_EDITOR / floor.width);
+              const width = Math.max(floor.width, Math.min(b.width, MAX_BOX_AREA_EDITOR / height));
+              return clampInside({ ...b, width, height });
+            },
           )}
         </details>
 

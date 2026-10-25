@@ -264,6 +264,18 @@ export function clampSize(width: number, height: number): { width: number; heigh
   return { width: w, height: h };
 }
 
+/**
+ * The smallest box that can hold this text readably. Null when the text needs more than
+ * the area limit allows, so it cannot be placed at all.
+ */
+export function minimumSizeForText(text: string): { width: number; height: number } | null {
+  const width = Math.max(MIN_BOX_WIDTH, longestWord(text) * MIN_WIDTH_PER_LETTER);
+  const neededArea = Math.max(width * MIN_BOX_HEIGHT, countCharacters(text) * MIN_AREA_PER_CHARACTER);
+  const height = Math.max(MIN_BOX_HEIGHT, neededArea / width);
+  if (width > 1 + EPSILON || width * height > MAX_BOX_AREA + EPSILON) return null;
+  return { width, height };
+}
+
 /** A size that suits the length of the text, in proportions a signature fits well. */
 export function defaultSize(textLength: number): { width: number; height: number } {
   const area = clamp(0.02 + textLength * 0.0006, 0.02, 0.058);
@@ -278,19 +290,31 @@ const FIT_STEP = 0.01;
  * Finds a free place for a box of about this size: the spot farthest from the other
  * boxes and the edges, so a signer can usually accept it as it is, or the free spot
  * closest to `near` (keeping its turn) when that is given. Tries smaller sizes if the
- * card is crowded. Returns null when not even a smallest box fits.
+ * card is crowded, but never below the size the text needs to stay readable. Returns
+ * null when no valid box fits.
  */
 export function findFreeSpot(
   others: Geometry[],
   size: { width: number; height: number } = defaultSize(40),
   near?: Geometry,
+  text?: string,
 ): Geometry | null {
+  const floor =
+    text === undefined ? { width: SIGN_MIN_WIDTH, height: SIGN_MIN_HEIGHT } : minimumSizeForText(text);
+  if (!floor) return null;
+
+  const start = clampSize(Math.max(size.width, floor.width), Math.max(size.height, floor.height));
   for (let shrink = 1; shrink >= 0.5 - EPSILON; shrink -= 0.1) {
-    const fitted = clampSize(size.width * shrink, size.height * shrink);
+    const fitted = clampSize(
+      Math.max(floor.width, start.width * shrink),
+      Math.max(floor.height, start.height * shrink),
+    );
+    if (fitted.width < floor.width - EPSILON || fitted.height < floor.height - EPSILON) continue;
     const spot = bestSpot(others, fitted.width, fitted.height, SCAN_STEP, near);
-    if (spot) return spot;
+    if (spot && checkGeometry(spot, others, text) === null) return spot;
   }
-  return bestSpot(others, SIGN_MIN_WIDTH, SIGN_MIN_HEIGHT, FIT_STEP, near);
+  const spot = bestSpot(others, floor.width, floor.height, FIT_STEP, near);
+  return spot && checkGeometry(spot, others, text) === null ? spot : null;
 }
 
 // Positions to try along one axis: the middle first, then outwards in both directions.
@@ -344,13 +368,20 @@ function bestSpot(
   return best;
 }
 
-/** True when a smallest box still fits somewhere; false means the card is full. */
-export function hasRoomForMinimumBox(others: Geometry[]): boolean {
-  const base: Geometry = { x: 0.5, y: 0.5, width: SIGN_MIN_WIDTH, height: SIGN_MIN_HEIGHT, rotation: 0 };
+/**
+ * True when a smallest box still fits somewhere; false means the card is full.
+ * With `text`, the box must also be big enough for that text to stay readable.
+ */
+export function hasRoomForMinimumBox(others: Geometry[], text?: string): boolean {
+  const floor =
+    text === undefined ? { width: SIGN_MIN_WIDTH, height: SIGN_MIN_HEIGHT } : minimumSizeForText(text);
+  if (!floor) return false;
+  const base: Geometry = { x: 0.5, y: 0.5, width: floor.width, height: floor.height, rotation: 0 };
   const half = halfExtents(base);
   for (const y of scanPositions(half.y, FIT_STEP)) {
     for (const x of scanPositions(half.x, FIT_STEP)) {
-      if (!overlapsAny({ ...base, x, y }, others)) return true;
+      const candidate = { ...base, x, y };
+      if (checkGeometry(candidate, others, text) === null) return true;
     }
   }
   return false;
