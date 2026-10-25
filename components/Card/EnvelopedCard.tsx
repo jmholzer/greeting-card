@@ -46,8 +46,9 @@ const HINT_IDLE_MS = 2000;
 
 const pullSpring = { stiffness: 260, damping: 28 };
 
-// Below this width the message cells are too small to read, so tapping one enlarges it.
-const ENLARGE_QUERY = '(max-width: 600px)';
+// A message cell narrower than this (in px) is too small to read, so tapping it enlarges it.
+// It depends on the card's size, not the screen width, so landscape phones work too.
+const ENLARGE_BELOW_CELL_WIDTH = 120;
 
 export default function EnvelopedCard({ messages, highlightId = null }: EnvelopedCardProps) {
   const reduceMotion = useReducedMotion() ?? false;
@@ -138,12 +139,12 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
   }, []);
 
   const handleTap = (point?: { x: number; y: number }) => {
-    if (clear && isFlipped && point && window.matchMedia(ENLARGE_QUERY).matches) {
+    if (clear && isFlipped && point) {
       const cell = [...document.querySelectorAll<HTMLElement>('[data-message-id]')].find((el) => {
         const rect = el.getBoundingClientRect();
         return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
       });
-      if (cell) {
+      if (cell && cell.getBoundingClientRect().width < ENLARGE_BELOW_CELL_WIDTH) {
         setEnlargedId(Number(cell.dataset.messageId));
         return;
       }

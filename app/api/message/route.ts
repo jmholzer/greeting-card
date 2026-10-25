@@ -56,7 +56,8 @@ function limitedResponse(retryAfterSeconds: number, message: string) {
 }
 
 // Spam bots tend to fill in every field, so a visitor never sees or fills this one.
-const HONEYPOT_FIELD = 'website';
+// The name is not one browsers autofill (like "website" or "url"), so real visitors never fill it.
+const HONEYPOT_FIELD = 'hp_extra';
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) {
