@@ -22,6 +22,10 @@ const INVISIBLE =
 
 const JOINERS_AND_MARKS = /[\u200C-\u200F]/g;
 
+// Joiners next to whitespace carry no meaning, so they must not stop it being trimmed or collapsed.
+const EDGE_BLANKS = /^[\s\u200C-\u200F]+|[\s\u200C-\u200F]+$/g;
+const BLANK_LINES = /(?:\n[\u200C-\u200F]*){3,}/g;
+
 /**
  * Removes invisible characters and tidies whitespace. Text that is only
  * whitespace and joiners counts as empty, so blank-looking messages are refused.
@@ -31,8 +35,8 @@ export function sanitizeText(text: string): string {
     .replace(/\r\n?/g, '\n')
     .replace(/\t/g, ' ')
     .replace(INVISIBLE, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+    .replace(BLANK_LINES, '\n\n')
+    .replace(EDGE_BLANKS, '');
   return cleaned.replace(JOINERS_AND_MARKS, '').trim() === '' ? '' : cleaned;
 }
 
