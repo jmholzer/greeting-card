@@ -113,24 +113,39 @@ function limitText(previous: string, value: string): { text: string; extraLine: 
 }
 
 const KEYBOARD_SLACK = 140;
+const VIEW_WIDTH_CHANGE = 48;
 
 function visibleHeight(): number {
   return window.visualViewport?.height ?? window.innerHeight;
+}
+
+function viewWidthChanged(previous: number): boolean {
+  return previous > 0 && Math.abs(window.innerWidth - previous) > VIEW_WIDTH_CHANGE;
 }
 
 /**
  * Blur runs before the tap that left the field becomes a click, while the keyboard is still open.
  * Keep the large card until that click has landed and the keyboard has closed.
  * Returns a function that cancels the wait.
+ * A press that is still down must not settle on a timer. Tab has no pointer, so it can.
  */
-function holdLargeCard(baseline: number, field: HTMLTextAreaElement | null, onRelease: () => void): () => void {
+function holdLargeCard(
+  baseline: number,
+  baselineWidth: number,
+  pointerIsDown: boolean,
+  field: HTMLTextAreaElement | null,
+  onRelease: () => void,
+): () => void {
   let settled = false;
   let watching = false;
   let wait = 0;
   let giveUp = 0;
   let onClick: (() => void) | null = null;
   const viewport = window.visualViewport;
-  const keyboardOpen = () => baseline > 0 && visibleHeight() < baseline - KEYBOARD_SLACK;
+  const keyboardOpen = () => {
+    if (baseline <= 0 || viewWidthChanged(baselineWidth)) return false;
+    return visibleHeight() < baseline - KEYBOARD_SLACK;
+  };
 
   const clearWatch = () => {
     if (!watching) return;
@@ -188,8 +203,9 @@ function holdLargeCard(baseline: number, field: HTMLTextAreaElement | null, onRe
 
   window.addEventListener('pointerup', afterPointer);
   window.addEventListener('pointercancel', afterPointer);
-  // A keyboard blur (Tab) has no pointer. A missed resize must not leave the card large forever.
-  wait = window.setTimeout(settle, 500);
+  // Tab moves focus with no pointer. A finger still down has to reach pointerup before the card can change size.
+  if (!pointerIsDown) wait = window.setTimeout(settle, 500);
+  // A missed resize must not leave the card large forever.
   giveUp = window.setTimeout(() => finish(true), 4000);
 
   return () => finish(false);
@@ -225,8 +241,11 @@ export default function Placement({
   const [lineTick, setLineTick] = useState(0);
   const [preview, setPreview] = useState<Geometry | null>(null);
   const [writing, setWriting] = useState(false);
-  // The visible height before the keyboard opened. Compared after blur to see if it is still up.
+  // The visible size before the keyboard opened. Width tells a resize apart from the keyboard.
   const openHeight = useRef(0);
+  const openWidth = useRef(0);
+  const pointersDown = useRef(0);
+  const pointerDownAt = useRef(0);
   const cancelHold = useRef<(() => void) | null>(null);
   const fontClass = fontFamilyMap[fontFamily] ?? '';
   const fontsVersion = useFontsVersion();
@@ -388,18 +407,42 @@ export default function Placement({
     const viewport = window.visualViewport;
     const onResize = () => {
       const field = inputRef.current;
-      if (document.activeElement === field) {
+      const focused = !!field && document.activeElement === field;
+      const resized = viewWidthChanged(openWidth.current);
+      if (focused) {
         field?.scrollIntoView({ block: 'center', inline: 'nearest' });
+        // Rotation or split view. The previous height belongs to the old window.
+        if (resized) {
+          openHeight.current = visibleHeight();
+          openWidth.current = window.innerWidth;
+        }
         return;
       }
-      openHeight.current = Math.max(openHeight.current, visibleHeight());
+      // The keyboard may still be closing. Keep the pre-keyboard height unless the window itself changed.
+      if (cancelHold.current && !resized) return;
+      openHeight.current = visibleHeight();
+      openWidth.current = window.innerWidth;
+    };
+    const onPointerDown = () => {
+      pointersDown.current += 1;
+      pointerDownAt.current = Date.now();
+    };
+    const onPointerUp = () => {
+      pointersDown.current = Math.max(0, pointersDown.current - 1);
+      if (pointersDown.current === 0) pointerDownAt.current = 0;
     };
     onResize();
     viewport?.addEventListener('resize', onResize);
     window.addEventListener('resize', onResize);
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('pointerup', onPointerUp, true);
+    window.addEventListener('pointercancel', onPointerUp, true);
     return () => {
       viewport?.removeEventListener('resize', onResize);
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('pointerup', onPointerUp, true);
+      window.removeEventListener('pointercancel', onPointerUp, true);
       cancelHold.current?.();
       cancelHold.current = null;
     };
@@ -408,14 +451,18 @@ export default function Placement({
   const onEditorFocus = () => {
     cancelHold.current?.();
     cancelHold.current = null;
-    openHeight.current = Math.max(openHeight.current, visibleHeight());
+    // Same window: keep a taller height from before a keyboard. A new width starts again.
+    if (viewWidthChanged(openWidth.current) || openHeight.current === 0) openHeight.current = visibleHeight();
+    else openHeight.current = Math.max(openHeight.current, visibleHeight());
+    openWidth.current = window.innerWidth;
     setWriting(true);
   };
 
   const onEditorBlur = () => {
     cancelHold.current?.();
     const field = inputRef.current;
-    cancelHold.current = holdLargeCard(openHeight.current, field, () => {
+    const pointerIsDown = pointersDown.current > 0 && Date.now() - pointerDownAt.current < 10000;
+    cancelHold.current = holdLargeCard(openHeight.current, openWidth.current, pointerIsDown, field, () => {
       cancelHold.current = null;
       setWriting(false);
     });
