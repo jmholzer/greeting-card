@@ -215,12 +215,41 @@
     inset: 0;
 }
 
+/* The writing field is drawn larger and scaled down. Clip that extra box so it cannot widen the page. */
+.messageAreaClip {
+    overflow: hidden;
+}
+
 /* Centres the text block inside the padding. The text itself is laid out by fitText.module.css. */
 .messageText {
     position: absolute;
     display: flex;
     flex-direction: column;
     justify-content: center;
+}
+
+.editor {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: block;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    resize: none;
+    overflow: hidden;
+    outline: none;
+    background: transparent;
+    color: inherit;
+    caret-color: #27221F;
+    cursor: text;
+    touch-action: none;
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+.editor::placeholder {
+    color: rgba(39, 34, 31, 0.45);
 }
 
 .highlight {

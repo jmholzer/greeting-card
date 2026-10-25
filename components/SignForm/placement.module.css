@@ -32,6 +32,25 @@
     position: absolute;
     inset: 5%;
     outline: 1px dashed rgba(39, 34, 31, 0.22);
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.surfaceEmpty {
+    cursor: text;
+}
+
+.surfaceEmpty:focus-visible {
+    outline: 2px solid #27221F;
+}
+
+/* The box being dragged out, before it is committed. */
+.draw {
+    position: absolute;
+    box-sizing: border-box;
+    border: 2px dashed #27221F;
+    background: rgba(255, 255, 255, 0.45);
+    pointer-events: none;
 }
 
 .footprint {
@@ -55,6 +74,11 @@
 
 .card .draft:active {
     cursor: grabbing;
+}
+
+.card .draft:focus-visible,
+.card .draft:focus-within {
+    outline: 2px solid #27221F;
 }
 
 .card .draft:focus-visible {
@@ -185,6 +209,11 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* While the field is focused, size the card from the large viewport so an on-screen keyboard cannot squash it. */
+.writing .card {
+    width: min(92vw, calc((100lvh - 270px) * 1.41), 720px);
+}
+
 @media (orientation: landscape) and (max-height: 520px) {
     .layout {
         flex-direction: row;
@@ -195,6 +224,10 @@
     .card {
         width: min(56vw, calc((100vh - 28px) * 1.41));
         width: min(56vw, calc((100dvh - 28px) * 1.41));
+    }
+
+    .writing .card {
+        width: min(56vw, calc((100lvh - 28px) * 1.41));
     }
 
     .side {

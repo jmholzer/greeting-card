@@ -77,26 +77,26 @@ export function usePlacementDrag(options: Options) {
     return false;
   }, []);
 
+  const startGesture = useCallback((kind: Kind, pointerId: number, x: number, y: number, focus: boolean) => {
+    if (optionsRef.current.disabled) return;
+    dragRef.current = { kind, pointerId, startX: x, startY: y, start: boxRef.current };
+    if (focus) optionsRef.current.focusTarget.current?.focus({ preventScroll: true });
+  }, []);
+
   const begin = useCallback((kind: Kind, event: PointerEvent<HTMLElement>) => {
     if (optionsRef.current.disabled || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.stopPropagation();
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      kind,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      start: boxRef.current,
-    };
-    optionsRef.current.focusTarget.current?.focus({ preventScroll: true });
-  }, []);
+    startGesture(kind, event.pointerId, event.clientX, event.clientY, true);
+  }, [startGesture]);
 
   const onPointerMove = useCallback(
     (event: PointerEvent<HTMLElement>) => {
       const drag = dragRef.current;
       const rect = optionsRef.current.surface.current?.getBoundingClientRect();
       if (!drag || drag.pointerId !== event.pointerId || !rect) return;
+      event.preventDefault();
       const current = boxRef.current;
 
       if (drag.kind === 'move') {
@@ -152,6 +152,8 @@ export function usePlacementDrag(options: Options) {
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
       if (optionsRef.current.disabled || !event.key.startsWith('Arrow')) return;
+      // Arrow keys inside the text box move the caret. They move the box only when the box itself is selected.
+      if (event.target !== event.currentTarget) return;
       event.preventDefault();
       const step = event.shiftKey ? KEY_STEP_LARGE : KEY_STEP;
       const current = boxRef.current;
@@ -165,6 +167,9 @@ export function usePlacementDrag(options: Options) {
   const shared = { onPointerMove, onPointerUp: onPointerEnd, onPointerCancel: onPointerEnd };
   return {
     apply,
+    startGesture,
+    onPointerMove,
+    onPointerEnd,
     onKeyDown,
     move: { ...shared, onPointerDown: downMove },
     rotate: { ...shared, onPointerDown: downRotate },

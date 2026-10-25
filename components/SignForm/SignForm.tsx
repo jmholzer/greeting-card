@@ -1,12 +1,12 @@
 'use client';
 import React, { useState, useRef, useEffect } from "react";
 import styles from './styles.module.css';
-import { EnvelopeIcon, CheckIcon, ArrowRightIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
+import { EnvelopeIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { useFormik } from 'formik';
 import Link from 'next/link';
 import { fontFamilyMap } from '@/app/fonts';
 import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGE_LINES } from '@/lib/config';
-import { defaultSize, findFreeSpot } from '@/lib/geometry';
+import { findFreeSpot, textLimits } from '@/lib/geometry';
 import type { Geometry } from '@/lib/geometry';
 import { sanitizeText } from '@/lib/validation';
 import FontPicker from '@/components/SignForm/FontPicker';
@@ -16,7 +16,6 @@ import { forgetOwnedMessage, saveOwnedMessage, useOwnedMessages } from '@/lib/ow
 
 const fonts: string[] = [...ALLOWED_FONTS];
 const characterLimit = MAX_MESSAGE_LENGTH;
-const placeholder = `Your message here. Don't forget to say who you are :)`;
 
 // The visible counter is hidden from screen readers; this is announced instead,
 // and only when the limit is close, so typing is not interrupted on every key.
@@ -49,10 +48,7 @@ interface SignFormProps {
   editing?: { id: number; text: string; fontFamily: string; box: Geometry };
 }
 
-type Step = 'write' | 'place';
-
 export default function SignForm({ isFull = false, messages = [], editing }: SignFormProps) {
-  const [step, setStep] = useState<Step>('write');
   const [others, setOthers] = useState<Message[]>(messages);
   const [box, setBox] = useState<Geometry | null>(editing?.box ?? null);
   const [placeNotice, setPlaceNotice] = useState('');
@@ -60,7 +56,6 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
   const editToken = editing ? tokens[editing.id] : undefined;
   const [errorMessage, setErrorMessage] = useState('');
   const [createdId, setCreatedId] = useState<number | null>(null);
-  const textRef = useRef<HTMLTextAreaElement>(null);
   // Reused when the same message is sent again after a failure, so the server
   // can tell a retry from a new message and never saves it twice.
   const attempt = useRef<{ id: string; text: string; fontFamily: string; box: string } | null>(null);
@@ -73,14 +68,15 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
     current: Message[],
     chosen: Geometry,
     setStatus: (status: string) => void,
-    text: string,
+    rawText: string,
   ) => {
     setOthers(current);
+    const cleaned = sanitizeText(rawText);
     const spot = findFreeSpot(
       current.map((message) => message.box),
       { width: chosen.width, height: chosen.height },
       chosen,
-      text,
+      cleaned || undefined,
     );
     if (!spot) {
       setStatus('full');
@@ -159,27 +155,6 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
     },
     onSubmit: async (values, { setSubmitting, setStatus, setFieldValue }) => {
       setErrorMessage('');
-      if (step === 'write') {
-        // First step done: place the message, starting from a free spot.
-        let start = box;
-        if (!start) {
-          start = findFreeSpot(
-            others.map((message) => message.box),
-            defaultSize(sanitizeText(values.text).length),
-            undefined,
-            sanitizeText(values.text),
-          );
-          if (!start) {
-            setStatus('full');
-            setSubmitting(false);
-            return;
-          }
-          setBox(start);
-        }
-        setStep('place');
-        setSubmitting(false);
-        return;
-      }
       if (!box) {
         setSubmitting(false);
         return;
@@ -254,27 +229,12 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
     },
   });
 
-  const { setFieldValue } = formik;
+  const { setFieldValue, setStatus } = formik;
   useEffect(() => {
     // Picked after mount so the server and client render the same initial HTML.
     if (editing) return;
     setFieldValue('fontFamily', fonts[Math.floor(Math.random() * fonts.length)], false);
   }, [setFieldValue, editing]);
-
-  const formVisible = !editing || (ownedReady && Boolean(editToken));
-  const placeHeadingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    if (step === 'place') placeHeadingRef.current?.focus();
-  }, [step]);
-
-  useEffect(() => {
-    if (!formVisible || step !== 'write') return;
-    // On a phone, focusing here would raise the keyboard before the visitor asked for it.
-    if (window.matchMedia('(pointer: coarse)').matches) return;
-    const field = textRef.current;
-    field?.focus();
-    if (editing && field) field.setSelectionRange(field.value.length, field.value.length);
-  }, [editing, formVisible, step]);
 
   const [copied, setCopied] = useState(false);
   const copyDraft = async () => {
@@ -297,8 +257,10 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
   const cleanedText = sanitizeText(formik.values.text);
   const isEmpty = cleanedText === '';
   const tooManyLines = cleanedText.split('\n').length > MAX_MESSAGE_LINES;
+  const textTooBig = cleanedText !== '' && textLimits(cleanedText) === null;
   const failed = formik.status === 'failure';
   const errorText = errorMessage || 'Failed to send message. Please try again.';
+  const formVisible = !editing || (ownedReady && Boolean(editToken));
 
   if (editing) {
     if (!ownedReady) return <div className={styles.container} />;
@@ -380,163 +342,104 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
     );
   }
 
-  const honeypot = (
-    <div className={styles.honeypot} aria-hidden inert>
-      <label htmlFor="hp-extra">Leave this field empty</label>
-      <input
-        id="hp-extra"
-        type="text"
-        tabIndex={-1}
-        autoComplete="off"
-        {...formik.getFieldProps('hp_extra')}
-      />
-    </div>
-  );
+  if (!formVisible) return <div className={styles.container} />;
 
-  if (step === 'place' && box) {
-    return (
-      <form
-        className={styles.placeContainer}
-        aria-busy={submitting}
-        onSubmit={(event) => {
-          if (submitting) {
-            event.preventDefault();
-            return;
-          }
-          formik.handleSubmit(event);
-        }}
-      >
-        {honeypot}
-        <h2 ref={placeHeadingRef} tabIndex={-1} className={styles.srOnly}>
-          Place your message on the card
-        </h2>
-        <Placement
-          others={others}
-          text={cleanedText}
-          fontFamily={formik.values.fontFamily}
-          box={box}
-          onChange={setBox}
-          disabled={submitting}
-          notice={placeNotice}
-          measureRef={measureRef}
-          actions={
-            <>
-              {failed && !submitting && (
-                <p id="message-error" className={styles.failureMessage} role="alert">
-                  {errorText}
-                </p>
-              )}
-              <div className={styles.actions}>
-                <button
-                  type="button"
-                  className={styles.cancelLink}
-                  onClick={() => setStep('write')}
-                  disabled={submitting}
-                >
-                  <ArrowLeftIcon className={styles.backIcon} aria-hidden />
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  className={styles.submitButton}
-                  aria-disabled={submitting || undefined}
-                >
-                  {submitting ? (
-                    <span className={styles.spinner} aria-hidden />
-                  ) : editing ? (
-                    <CheckIcon className={styles.sendIcon} aria-hidden />
-                  ) : (
-                    <EnvelopeIcon className={styles.sendIcon} aria-hidden />
-                  )}
-                  <span>{submitting ? (editing ? 'Saving' : 'Sending') : editing ? 'Save' : 'Send'}</span>
-                </button>
-              </div>
-            </>
-          }
-        />
-      </form>
-    );
-  }
+  const sendBlocked = !box || isEmpty || tooManyLines || textTooBig;
 
   return (
-    <div className={styles.container}>
-      <form
-        className={styles.form}
-        aria-busy={submitting}
-        onSubmit={(event) => {
-          // The button stays focusable while sending, so guard against a second submit.
-          if (submitting) {
-            event.preventDefault();
-            return;
-          }
-          formik.handleSubmit(event);
-        }}
-      >
-        <div className={styles.textAreaWrapper}>
-          {honeypot}
-          <label htmlFor="message-text" className={styles.srOnly}>
-            Your message
-          </label>
-          <textarea
-            id="message-text"
-            ref={textRef}
-            className={`${styles.messageField} ${fontFamilyMap[formik.values.fontFamily]}`}
-            {...formik.getFieldProps('text')}
-            maxLength={characterLimit}
-            placeholder={placeholder}
-            disabled={submitting}
-            aria-describedby={failed ? 'message-error' : undefined}
-            aria-invalid={failed || undefined}
-          />
-          <div className={styles.bottomBar}>
-            <div className={styles.characterCount} aria-hidden>
-              {length}/{characterLimit}
+    <form
+      className={styles.placeContainer}
+      aria-busy={submitting}
+      onSubmit={(event) => {
+        if (submitting) {
+          event.preventDefault();
+          return;
+        }
+        formik.handleSubmit(event);
+      }}
+    >
+      <div className={styles.honeypot} aria-hidden inert>
+        <label htmlFor="hp-extra">Leave this field empty</label>
+        <input
+          id="hp-extra"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          {...formik.getFieldProps('hp_extra')}
+        />
+      </div>
+      <h2 className={styles.srOnly}>Write on the card</h2>
+      <Placement
+        others={others}
+        text={formik.values.text}
+        onTextChange={(value) => setFieldValue('text', value)}
+        fontFamily={formik.values.fontFamily}
+        box={box}
+        onChange={setBox}
+        focusOnMount={Boolean(editing)}
+        disabled={submitting}
+        notice={placeNotice}
+        onNoRoom={editing ? undefined : () => setStatus('full')}
+        measureRef={measureRef}
+        actions={
+          <>
+            <div className={styles.signMeta}>
+              <div className={styles.characterCount} aria-hidden>
+                {length}/{characterLimit}
+              </div>
+              <span className={styles.srOnly} role="status">
+                {remaining <= COUNT_ANNOUNCE_FROM
+                  ? `${remaining} ${remaining === 1 ? 'character' : 'characters'} left`
+                  : ''}
+              </span>
+              <FontPicker
+                fonts={fonts}
+                previewText={formik.values.text}
+                value={formik.values.fontFamily}
+                onChange={(font) => setFieldValue('fontFamily', font)}
+                disabled={submitting}
+              />
             </div>
-            <span className={styles.srOnly} role="status">
-              {remaining <= COUNT_ANNOUNCE_FROM
-                ? `${remaining} ${remaining === 1 ? 'character' : 'characters'} left`
-                : ''}
-            </span>
-            <FontPicker
-              fonts={fonts}
-              previewText={formik.values.text}
-              value={formik.values.fontFamily}
-              onChange={(font) => formik.setFieldValue('fontFamily', font)}
-              disabled={submitting}
-            />
-          </div>
-        </div>
-
-        <div className={styles.errorSlot}>
-          {tooManyLines && (
-            <p className={styles.failureMessage} role="status">
-              Please use at most {MAX_MESSAGE_LINES} lines.
-            </p>
-          )}
-          {failed && !submitting && !tooManyLines && (
-            <p id="message-error" className={styles.failureMessage} role="alert">
-              {errorText}
-            </p>
-          )}
-        </div>
-
-        <div className={styles.actions}>
-          {editing && (
-            <Link href={`/?signed=${editing.id}`} className={styles.cancelLink}>
-              Cancel
-            </Link>
-          )}
-          <button
-            type="submit"
-            className={styles.submitButton}
-            disabled={(isEmpty || tooManyLines) && !submitting}
-            aria-disabled={submitting || undefined}
-          >
-            <span>Next</span>
-            <ArrowRightIcon className={styles.sendIcon} aria-hidden />
-          </button>
-        </div>
-      </form>
-    </div>
+            {textTooBig && (
+              <p className={styles.failureMessage} role="status">
+                The message is too small to read.
+              </p>
+            )}
+            {tooManyLines && (
+              <p className={styles.failureMessage} role="status">
+                Please use at most {MAX_MESSAGE_LINES} lines.
+              </p>
+            )}
+            {failed && !submitting && !tooManyLines && !textTooBig && (
+              <p id="message-error" className={styles.failureMessage} role="alert">
+                {errorText}
+              </p>
+            )}
+            <div className={styles.actions}>
+              {editing && (
+                <Link href={`/?signed=${editing.id}`} className={styles.cancelLink}>
+                  Cancel
+                </Link>
+              )}
+              <button
+                type="submit"
+                className={styles.submitButton}
+                disabled={sendBlocked && !submitting}
+                aria-disabled={submitting || undefined}
+              >
+                {submitting ? (
+                  <span className={styles.spinner} aria-hidden />
+                ) : editing ? (
+                  <CheckIcon className={styles.sendIcon} aria-hidden />
+                ) : (
+                  <EnvelopeIcon className={styles.sendIcon} aria-hidden />
+                )}
+                <span>{submitting ? (editing ? 'Saving' : 'Sending') : editing ? 'Save' : 'Send'}</span>
+              </button>
+            </div>
+          </>
+        }
+      />
+    </form>
   );
 }

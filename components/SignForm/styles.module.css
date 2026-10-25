@@ -387,8 +387,19 @@
     width: 100%;
     height: 100vh;
     height: 100dvh;
+    max-height: 100%;
+    overflow-x: hidden;
     overflow-y: auto;
+    overscroll-behavior: contain;
     color: #27221F;
+}
+
+.signMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 44px;
 }
 
 .backIcon {
