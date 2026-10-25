@@ -11,13 +11,16 @@ import {
 } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import styles from './styles.module.css';
 
 import Card from '@/components/Card/Card';
+import OwnerControls from '@/components/Card/OwnerControls';
 import { useDeviceTilt, useGesture } from '@/components/Card/hooks';
 import { useHints } from '@/components/Card/useHints';
 import type { HintStep } from '@/components/Card/useHints';
 import { fontFamilyMap } from '@/app/fonts';
+import { forgetOwnedMessage, useOwnedMessages } from '@/lib/ownedMessages';
 import type { Message } from '@/utils/messages';
 
 interface EnvelopedCardProps {
@@ -53,6 +56,11 @@ const ENLARGE_BELOW_CELL_WIDTH = 120;
 export default function EnvelopedCard({ messages, highlightId = null }: EnvelopedCardProps) {
   const reduceMotion = useReducedMotion() ?? false;
   const highlighted = highlightId !== null;
+  // Fixed at load: deleting the highlighted message must not bring the first-visit hints back.
+  const [openedFromShortcut] = useState(highlighted);
+  const router = useRouter();
+  const { ready: ownedReady, tokens } = useOwnedMessages();
+  const [notice, setNotice] = useState('');
   const [stage, setStage] = useState<Stage>(highlighted ? 'out' : 'sealed');
   const [isFlipped, setIsFlipped] = useState(highlighted);
   const [enlargedId, setEnlargedId] = useState<number | null>(null);
@@ -88,7 +96,7 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
 
   const { ready: hintsReady, isDone, markDone } = useHints();
   const step = STEP_FOR_STAGE[stage];
-  const hintPending = hintsReady && !highlighted && !isDone(step);
+  const hintPending = hintsReady && !openedFromShortcut && !isDone(step);
   const [idleStep, setIdleStep] = useState<HintStep | null>(null);
   useEffect(() => {
     if (!hintPending) return;
@@ -116,7 +124,7 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
   const advance = () => {
     void requestPermission();
     if (stage === 'out' && !clear) return;
-    if (!highlighted) markDone(step);
+    if (!openedFromShortcut) markDone(step);
     if (stage === 'sealed') {
       vibrate(8);
       setStage('open');
@@ -128,6 +136,34 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
       setIsFlipped((flipped) => !flipped);
     }
   };
+
+  const ownedMessages = ownedReady ? messages.filter((message) => tokens[message.id]) : [];
+
+  const deleteOwned = async (message: Message): Promise<string | null> => {
+    try {
+      const response = await fetch(`/api/message/${message.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${tokens[message.id] ?? ''}` },
+      });
+      // 404: already gone, or no longer ours. Either way there is nothing left to delete.
+      if (response.ok || response.status === 404) {
+        forgetOwnedMessage(message.id);
+        setNotice(response.ok ? 'Your message was deleted' : 'That message is no longer on the card');
+        router.refresh();
+        return null;
+      }
+      if (response.status === 429) return 'Too many requests. Please try again later.';
+      return 'Could not delete the message. Please try again.';
+    } catch {
+      return 'Could not delete the message. Check your connection and try again.';
+    }
+  };
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(''), 4000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   const height = () => controllerRef.current?.getBoundingClientRect().height ?? 300;
 
@@ -310,8 +346,16 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
         {...gesture}
       />
 
+      {clear && isFlipped && (
+        <OwnerControls messages={ownedMessages} onDelete={deleteOwned} />
+      )}
+
       <div className={styles.hintArea} aria-live="polite">
-        {highlighted && isFlipped && <p className={styles.hint}>Your message is highlighted</p>}
+        {notice ? (
+          <p className={styles.hint}>{notice}</p>
+        ) : (
+          highlighted && isFlipped && <p className={styles.hint}>Your message is highlighted</p>
+        )}
         <AnimatePresence>
           {showHint && (
             <motion.p

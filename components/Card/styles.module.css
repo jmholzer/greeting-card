@@ -303,3 +303,134 @@
     outline-offset: 3px;
     box-shadow: 0 0 0 3px #fff;
 }
+
+/* Edit and Delete for the visitor's own messages. Small and out of the way, above the card. */
+
+.envelopeContainer .ownerBar,
+.envelopeContainer .ownerBar * {
+    pointer-events: auto;
+}
+
+.ownerBar {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    right: 0;
+    z-index: 6;
+    display: flex;
+    gap: 6px;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.ownerItem:first-child {
+    /* Not justify-content: flex-end, which would make the overflowing start unreachable. */
+    margin-left: auto;
+}
+
+.ownerItem {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 999px;
+    background: rgba(40, 20, 5, 0.28);
+    color: #FFF6EA;
+    font-size: 13px;
+}
+
+.ownerPreview {
+    max-width: 14ch;
+    padding: 0 6px 0 10px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    opacity: 0.85;
+}
+
+.ownerButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.ownerButton:hover {
+    background: rgba(255, 246, 234, 0.2);
+}
+
+.ownerButton:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 1px;
+}
+
+@media (pointer: coarse) {
+    .ownerButton {
+        min-height: 40px;
+        padding: 0 14px;
+    }
+}
+
+.confirmTitle {
+    margin: 0;
+    font-size: 20px;
+    text-align: center;
+}
+
+.confirmText {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.4;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.confirmError {
+    margin: 0;
+    padding: 8px 12px;
+    border: 2px solid #8a1c1c;
+    border-radius: 10px;
+    color: #8a1c1c;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.confirmActions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}
+
+.confirmDelete {
+    padding: 10px 26px;
+    border: 2px solid #8a1c1c;
+    border-radius: 999px;
+    background: #8a1c1c;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.confirmDelete[aria-disabled='true'] {
+    cursor: progress;
+    opacity: 0.7;
+}
+
+.confirmDelete:focus-visible {
+    outline: 3px solid #8a1c1c;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px #fff;
+}

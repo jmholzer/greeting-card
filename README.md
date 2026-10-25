@@ -92,6 +92,10 @@ To remove a message, set `ADMIN_TOKEN` and call the delete route with it. Messag
 
 Without `ADMIN_TOKEN` the route returns 404. After 10 wrong tokens from one address in 10 minutes it returns 429.
 
+## Editing your own message
+
+There are no accounts. When someone signs, the server returns a random secret once and keeps only its hash. The browser stores it, and the card then shows small Edit and Delete controls on that browser's messages only. Clearing site data or switching browsers loses the ability to change a message; use the admin route above in that case. Messages written before this feature cannot be edited.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Local development
@@ -123,6 +127,8 @@ docker run --name greeting-card-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=
    ```
 
    An existing database needs the additive `requestId` column once. Either run `npx prisma db push` or apply `prisma/migrations/20261025130000_add_message_request_id/migration.sql` with `psql`. Existing rows are not changed.
+
+   An existing database also needs the additive `editTokenHash` column. Either run `npx prisma db push` or apply `prisma/migrations/20261025140000_add_message_edit_token_hash/migration.sql` with `psql`. Apply it before deploying, because the sign API writes the column.
 
 5. Start the dev server
 

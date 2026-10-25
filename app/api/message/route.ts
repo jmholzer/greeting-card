@@ -3,6 +3,7 @@ import { MAX_MESSAGES } from '@/lib/config';
 import { validateMessage } from '@/lib/validation';
 import { checkRateLimit, deleteExpiredRateLimits } from '@/lib/rateLimit';
 import { isSameOrigin } from '@/lib/request';
+import { createEditToken } from '@/lib/editToken';
 import { after } from 'next/server';
 
 // Arbitrary constant key for a Postgres advisory lock that serialises message
@@ -31,6 +32,7 @@ function errorResponse(
 function messageResponse(
   message: { id: number; text: string; fontFamily: string; createdAt: Date },
   status: number,
+  editToken: string,
 ) {
   return Response.json(
     {
@@ -40,8 +42,9 @@ function messageResponse(
         fontFamily: message.fontFamily,
         createdAt: message.createdAt.toISOString(),
       },
+      editToken,
     },
-    { status },
+    { status, headers: { 'Cache-Control': 'no-store' } },
   );
 }
 
@@ -111,11 +114,17 @@ export async function POST(request: Request) {
   const { text, fontFamily, requestId } = validation.data;
 
   // A retry of a submit that already went through gets the saved message back,
-  // without using any of the rate limit allowance.
+  // without using any of the rate limit allowance. Only the hash of the edit token
+  // is stored, so a retry gets a fresh token (the requestId is the creator's secret
+  // and is never returned by any other endpoint).
   if (requestId) {
     try {
       const existing = await prisma.message.findUnique({ where: { requestId } });
-      if (existing) return messageResponse(existing, 200);
+      if (existing) {
+        const { token, hash } = createEditToken();
+        await prisma.message.update({ where: { id: existing.id }, data: { editTokenHash: hash } });
+        return messageResponse(existing, 200, token);
+      }
     } catch (error) {
       console.error('Error checking request id:', error);
       return errorResponse(500, 'server_error', 'Failed to save message.');
@@ -129,6 +138,8 @@ export async function POST(request: Request) {
   }
   if (Math.random() < CLEANUP_SAMPLE_RATE) after(deleteExpiredRateLimits);
 
+  const { token, hash } = createEditToken();
+
   try {
     const saved = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${CREATE_MESSAGE_LOCK_ID})`;
@@ -136,7 +147,10 @@ export async function POST(request: Request) {
       // Another request with the same id may have won while this one waited for the lock.
       if (requestId) {
         const existing = await tx.message.findUnique({ where: { requestId } });
-        if (existing) return { message: existing, created: false };
+        if (existing) {
+          await tx.message.update({ where: { id: existing.id }, data: { editTokenHash: hash } });
+          return { message: existing, created: false };
+        }
       }
 
       const count = await tx.message.count();
@@ -144,11 +158,11 @@ export async function POST(request: Request) {
         throw new CardFullError();
       }
 
-      const created = await tx.message.create({ data: { text, fontFamily, requestId } });
+      const created = await tx.message.create({ data: { text, fontFamily, requestId, editTokenHash: hash } });
       return { message: created, created: true };
     });
 
-    return messageResponse(saved.message, saved.created ? 201 : 200);
+    return messageResponse(saved.message, saved.created ? 201 : 200, token);
   } catch (error) {
     if (error instanceof CardFullError) {
       return errorResponse(

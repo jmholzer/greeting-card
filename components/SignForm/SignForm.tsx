@@ -8,6 +8,7 @@ import { fontFamilyMap } from '@/app/fonts';
 import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGE_LINES, MAX_MESSAGES } from '@/lib/config';
 import { sanitizeText } from '@/lib/validation';
 import FontPicker from '@/components/SignForm/FontPicker';
+import { forgetOwnedMessage, saveOwnedMessage, useOwnedMessages } from '@/lib/ownedMessages';
 
 const fonts: string[] = [...ALLOWED_FONTS];
 const characterLimit = MAX_MESSAGE_LENGTH;
@@ -38,9 +39,13 @@ function formatWait(seconds: number): string {
 
 interface SignFormProps {
   isFull?: boolean;
+  /** When set, the form changes this existing message instead of writing a new one. */
+  editing?: { id: number; text: string; fontFamily: string };
 }
 
-export default function SignForm({ isFull = false }: SignFormProps) {
+export default function SignForm({ isFull = false, editing }: SignFormProps) {
+  const { ready: ownedReady, tokens } = useOwnedMessages();
+  const editToken = editing ? tokens[editing.id] : undefined;
   const [errorMessage, setErrorMessage] = useState('');
   const [createdId, setCreatedId] = useState<number | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -49,10 +54,54 @@ export default function SignForm({ isFull = false }: SignFormProps) {
   const attempt = useRef<{ id: string; text: string; fontFamily: string } | null>(null);
   const successRef = useRef<HTMLDivElement>(null);
 
+  const saveEdit = async (
+    values: { text: string; fontFamily: string; hp_extra: string },
+    setFieldValue: (field: string, value: string, validate?: boolean) => void,
+    setStatus: (status: string) => void,
+    id: number,
+  ) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(`/api/message/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${editToken ?? ''}`,
+        },
+        body: JSON.stringify(values),
+        signal: controller.signal,
+      });
+      if (response.ok) {
+        setStatus('success');
+      } else if (response.status === 404) {
+        forgetOwnedMessage(id);
+        setStatus('gone');
+      } else {
+        const body = await response.json().catch(() => null);
+        const wait = Number(response.headers.get('Retry-After'));
+        if (response.status === 429 && wait > 0) {
+          setErrorMessage(`Too many requests from your network. Please try again in ${formatWait(wait)}.`);
+        } else {
+          setErrorMessage(typeof body?.message === 'string' ? body.message : '');
+        }
+        if (values.hp_extra) setFieldValue('hp_extra', '', false);
+        setStatus('failure');
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setErrorMessage('Saving is taking too long. Check your connection and try again.');
+      }
+      setStatus('failure');
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
   const formik = useFormik({
     initialValues: {
-      text: '',
-      fontFamily: fonts[0],
+      text: editing?.text ?? '',
+      fontFamily: editing && fonts.includes(editing.fontFamily) ? editing.fontFamily : fonts[0],
       hp_extra: '',
     },
     validate: (values) => {
@@ -67,6 +116,11 @@ export default function SignForm({ isFull = false }: SignFormProps) {
     },
     onSubmit: async (values, { setSubmitting, setStatus, setFieldValue }) => {
       setErrorMessage('');
+      if (editing) {
+        await saveEdit(values, setFieldValue, setStatus, editing.id);
+        setSubmitting(false);
+        return;
+      }
       const previous = attempt.current;
       const sameMessage =
         previous !== null && previous.text === values.text && previous.fontFamily === values.fontFamily;
@@ -92,6 +146,7 @@ export default function SignForm({ isFull = false }: SignFormProps) {
             setErrorMessage('Your message was not sent. Please try again.');
             setStatus('failure');
           } else {
+            if (typeof body.editToken === 'string') saveOwnedMessage(body.message.id, body.editToken);
             setCreatedId(body.message.id);
             setStatus('success');
           }
@@ -122,14 +177,19 @@ export default function SignForm({ isFull = false }: SignFormProps) {
   const { setFieldValue } = formik;
   useEffect(() => {
     // Picked after mount so the server and client render the same initial HTML.
+    if (editing) return;
     setFieldValue('fontFamily', fonts[Math.floor(Math.random() * fonts.length)], false);
-  }, [setFieldValue]);
+  }, [setFieldValue, editing]);
 
+  const formVisible = !editing || (ownedReady && Boolean(editToken));
   useEffect(() => {
+    if (!formVisible) return;
     // On a phone, focusing here would raise the keyboard before the visitor asked for it.
     if (window.matchMedia('(pointer: coarse)').matches) return;
-    textRef.current?.focus();
-  }, []);
+    const field = textRef.current;
+    field?.focus();
+    if (editing && field) field.setSelectionRange(field.value.length, field.value.length);
+  }, [editing, formVisible]);
 
   const [copied, setCopied] = useState(false);
   const copyDraft = async () => {
@@ -154,6 +214,32 @@ export default function SignForm({ isFull = false }: SignFormProps) {
   const tooManyLines = cleanedText.split('\n').length > MAX_MESSAGE_LINES;
   const failed = formik.status === 'failure';
   const errorText = errorMessage || 'Failed to send message. Please try again.';
+
+  if (editing) {
+    if (!ownedReady) return <div className={styles.container} />;
+    if (!editToken || formik.status === 'gone') {
+      return (
+        <div className={styles.container}>
+          <div className={styles.textAreaWrapper}>
+            <div className={styles.statusContainer} role="status">
+              <div className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}>
+                This message can&apos;t be changed here
+              </div>
+              <div className={styles.fullMessage}>
+                A message can only be changed in the browser it was written in.
+              </div>
+              <Link
+                href="/"
+                className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}
+              >
+                See the card &rarr;
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
 
   if (isFull || formik.status === 'full') {
     const draft = formik.values.text.trim();
@@ -188,18 +274,20 @@ export default function SignForm({ isFull = false }: SignFormProps) {
     );
   }
 
+  const shownId = editing ? editing.id : createdId;
+
   if (succeeded) {
     return (
       <div className={styles.container}>
         <div className={styles.textAreaWrapper}>
           <div className={styles.statusContainer} role="status" tabIndex={-1} ref={successRef}>
             <CheckIcon className={styles.successIcon} aria-hidden />
-            <div className={styles.successText}>Message sent</div>
+            <div className={styles.successText}>{editing ? 'Message updated' : 'Message sent'}</div>
             <Link
-              href={createdId === null ? '/' : `/?signed=${createdId}`}
+              href={shownId === null ? '/' : `/?signed=${shownId}`}
               className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}
             >
-              {createdId === null ? 'See the card' : 'See your message'} &rarr;
+              {shownId === null ? 'See the card' : 'See your message'} &rarr;
             </Link>
           </div>
         </div>
@@ -278,19 +366,28 @@ export default function SignForm({ isFull = false }: SignFormProps) {
           )}
         </div>
 
-        <button
-          type="submit"
-          className={styles.submitButton}
-          disabled={(isEmpty || tooManyLines) && !submitting}
-          aria-disabled={submitting || undefined}
-        >
-          {submitting ? (
-            <span className={styles.spinner} aria-hidden />
-          ) : (
-            <EnvelopeIcon className={styles.sendIcon} aria-hidden />
+        <div className={styles.actions}>
+          {editing && (
+            <Link href={`/?signed=${editing.id}`} className={styles.cancelLink}>
+              Cancel
+            </Link>
           )}
-          <span>{submitting ? 'Sending' : 'Send'}</span>
-        </button>
+          <button
+            type="submit"
+            className={styles.submitButton}
+            disabled={(isEmpty || tooManyLines) && !submitting}
+            aria-disabled={submitting || undefined}
+          >
+            {submitting ? (
+              <span className={styles.spinner} aria-hidden />
+            ) : editing ? (
+              <CheckIcon className={styles.sendIcon} aria-hidden />
+            ) : (
+              <EnvelopeIcon className={styles.sendIcon} aria-hidden />
+            )}
+            <span>{submitting ? (editing ? 'Saving' : 'Sending') : editing ? 'Save' : 'Send'}</span>
+          </button>
+        </div>
       </form>
     </div>
   );

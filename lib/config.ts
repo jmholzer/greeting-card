@@ -31,6 +31,9 @@ export const RATE_LIMIT_WINDOW_SECONDS = 10 * 60;
 // Requests that fail validation are counted in their own, larger bucket.
 export const RATE_LIMIT_INVALID_MAX = 30;
 
+// Edits and deletes of a visitor's own message, per window.
+export const RATE_LIMIT_EDIT_MAX = 20;
+
 // Failed admin logins per window.
 export const RATE_LIMIT_ADMIN_MAX = 10;
 

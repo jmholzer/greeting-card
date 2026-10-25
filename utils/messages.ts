@@ -14,6 +14,8 @@ export async function getMessages(): Promise<Message[]> {
   const rows = await prisma.message.findMany({
     orderBy: MESSAGE_ORDER,
     take: MAX_MESSAGES,
+    // Listed explicitly, so the edit token hash is never read for display.
+    select: { id: true, text: true, fontFamily: true, createdAt: true, updatedAt: true },
   });
 
   return rows.map((row) => ({
