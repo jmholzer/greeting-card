@@ -9,19 +9,27 @@ export type ValidationResult =
   | { ok: true; data: ValidMessage }
   | { ok: false; message: string };
 
-// Control characters (except tab and newline), zero-width and bidi marks, the
-// word joiner range, soft hyphen, BOM and blank-looking filler letters.
+// Control characters (except tab and newline), zero-width spaces, bidi embedding
+// and override marks, the word joiner range, soft hyphen, BOM and blank-looking
+// filler letters. U+200C to U+200F are kept: they join emoji and are needed to
+// write some languages (for example Persian and Hindi) correctly.
 const INVISIBLE =
-  /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u00AD\u115F\u1160\u200B-\u200F\u2028-\u202E\u2060-\u206F\u3164\uFEFF\uFFA0]/g;
+  /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u00AD\u115F\u1160\u200B\u2028-\u202E\u2060-\u206F\u3164\uFEFF\uFFA0]/g;
 
-/** Removes invisible characters and tidies whitespace, so blank-looking text counts as empty. */
+const JOINERS_AND_MARKS = /[\u200C-\u200F]/g;
+
+/**
+ * Removes invisible characters and tidies whitespace. Text that is only
+ * whitespace and joiners counts as empty, so blank-looking messages are refused.
+ */
 export function sanitizeText(text: string): string {
-  return text
+  const cleaned = text
     .replace(/\r\n?/g, '\n')
     .replace(/\t/g, ' ')
     .replace(INVISIBLE, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+  return cleaned.replace(JOINERS_AND_MARKS, '').trim() === '' ? '' : cleaned;
 }
 
 export function validateMessage(body: unknown): ValidationResult {
