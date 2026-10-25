@@ -18,7 +18,7 @@ import { useDeviceTilt, useGesture } from '@/components/Card/hooks';
 import { useHints } from '@/components/Card/useHints';
 import type { HintStep } from '@/components/Card/useHints';
 import { fontFamilyMap } from '@/app/fonts';
-import { Message } from '@/utils/messages';
+import type { Message } from '@/utils/messages';
 
 interface EnvelopedCardProps {
   messages: Message[];

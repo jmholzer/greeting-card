@@ -81,9 +81,8 @@ Copy `.env.example` to `.env` and fill it in. Use `.env` rather than `.env.local
 | `NEXT_PUBLIC_CARD_FRONT_URL` | Optional. Overrides the default card front with a path in `public/` (e.g. `/front.jpg`) or an `https://` URL. Read at build time. |
 | `NEXT_PUBLIC_CARD_BACKGROUND_COLOR` | Optional. Page background colour: hex, colour name, or `rgb()`/`hsl()`. Defaults to `#e66b1e`. Read at build time. |
 | `ADMIN_TOKEN` | Optional. A long random secret that enables the admin delete route (see [Moderation](#moderation)). Leave it unset to keep the route disabled. Generate one with `openssl rand -hex 32` and never commit it. |
-| `HOST` | The base URL of the running site, with no trailing slash (e.g. `http://localhost:3000` locally, or your deployment URL). The home page uses it to fetch messages from `/api/messages`. |
 
-On Vercel, the two `POSTGRES_*` variables are added for you when you connect a Vercel Postgres database. You only need to add `HOST` yourself.
+On Vercel, the two `POSTGRES_*` variables are added for you when you connect a Vercel Postgres database.
 
 ## Moderation
 
@@ -122,6 +121,8 @@ docker run --name greeting-card-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=
    ```sh
    npx prisma db push
    ```
+
+   An existing database needs the additive `requestId` column once. Either run `npx prisma db push` or apply `prisma/migrations/20261025130000_add_message_request_id/migration.sql` with `psql`. Existing rows are not changed.
 
 5. Start the dev server
 
@@ -166,37 +167,31 @@ Other useful scripts: `npm run build` (production build), `npm start` (serve the
 
 5. [Create a Postgres database on Vercel and connect it with your new project](https://vercel.com/docs/storage/vercel-postgres/quickstart#create-a-postgres-database)
 
-6. Add the `HOST` environment variable to the Vercel project (this can be any URL that points to your deployment)
-
-   ```sh
-   HOST=https://greeting-card-demo.vercel.app
-   ```
-
-7. Pull the DB environment variables to your local `.env` file (the Prisma CLI reads `.env`, not `.env.local`)
+6. Pull the DB environment variables to your local `.env` file (the Prisma CLI reads `.env`, not `.env.local`)
 
    ```sh
    vercel env pull .env
    ```
 
-8. Create a Prisma client
+7. Create a Prisma client
 
    ```sh
    npx prisma generate
    ```
 
-9. Create the DB tables
+8. Create the DB tables
 
    ```sh
    npx prisma db push
    ```
 
-10. Redeploy your project to load the new env vars
+9. Redeploy your project to load the new env vars
 
     ```sh
     vercel --prod
     ```
 
-11. Navigate to your project's URL and check that you can view (`/`) and sign (`/sign`) the card.
+10. Navigate to your project's URL and check that you can view (`/`) and sign (`/sign`) the card.
 
 From here you can put your own domain in front of your deployment and share the link.
 

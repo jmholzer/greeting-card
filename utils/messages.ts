@@ -1,3 +1,6 @@
+import prisma from '@/lib/prisma';
+import { MAX_MESSAGES, MESSAGE_ORDER } from '@/lib/config';
+
 export interface Message {
   id: number;
   text: string;
@@ -6,14 +9,18 @@ export interface Message {
   updatedAt: string;
 }
 
+/** Reads the card's messages straight from the database. Throws if the database is unreachable. */
 export async function getMessages(): Promise<Message[]> {
-  try {
-    const response = await fetch(`${process.env.HOST}/api/messages`, { cache: 'no-store' });
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    // TODO: probably shouldn't return no messages to someone in any case
-    console.error(error)
-    return [];
-  }
+  const rows = await prisma.message.findMany({
+    orderBy: MESSAGE_ORDER,
+    take: MAX_MESSAGES,
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    text: row.text,
+    fontFamily: row.fontFamily,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }));
 }

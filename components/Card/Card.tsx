@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { AutoTextSize } from 'auto-text-size';
 import styles from './styles.module.css';
 
-import { Message } from '@/utils/messages';
+import type { Message } from '@/utils/messages';
 import { assignGridCells } from '@/utils/grid';
 import { CARD_FRONT_SRC } from '@/lib/config';
 
