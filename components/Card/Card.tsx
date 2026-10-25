@@ -19,6 +19,8 @@ interface CardProps {
   /** Live horizontal drag offset in px, used to preview the flip while swiping. */
   dragX: MotionValue<number>;
   reduceMotion: boolean;
+  /** Id of a message to draw attention to, e.g. the one the visitor just wrote. */
+  highlightId?: number | null;
 }
 
 const spring = {
@@ -33,11 +35,11 @@ const gridCols = 4;
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
-export default function Card({ messages, isFlipped, dragX, reduceMotion }: CardProps) {
+export default function Card({ messages, isFlipped, dragX, reduceMotion, highlightId = null }: CardProps) {
   messages = messages.slice(0, gridRows * gridCols);
   const messageCells = assignGridCells(messages.map((message) => message.id), gridRows, gridCols);
 
-  const angle = useMotionValue(0);
+  const angle = useMotionValue(isFlipped ? -180 : 0);
   useEffect(() => {
     if (reduceMotion) return;
     const controls = animate(angle, isFlipped ? -180 : 0, spring);
@@ -85,7 +87,10 @@ export default function Card({ messages, isFlipped, dragX, reduceMotion }: CardP
             return (
               <div
                 key={message.id}
-                className={`${styles.message} ${fontClassName}`}
+                data-message-id={message.id}
+                className={`${styles.message} ${fontClassName} ${
+                  message.id === highlightId ? `${styles.highlight} ${styles.highlightPulse}` : ''
+                }`}
                 style={{
                   gridRow: `${cell[0] + 1} / span 1`,
                   gridColumn: `${cell[1] + 1} / span 1`,

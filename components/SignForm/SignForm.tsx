@@ -30,6 +30,7 @@ interface SignFormProps {
 
 export default function SignForm({ isFull = false }: SignFormProps) {
   const [errorMessage, setErrorMessage] = useState('');
+  const [createdId, setCreatedId] = useState<number | null>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
 
@@ -56,6 +57,8 @@ export default function SignForm({ isFull = false }: SignFormProps) {
           body: JSON.stringify(values),
         });
         if (response.ok) {
+          const body = await response.json().catch(() => null);
+          setCreatedId(typeof body?.message?.id === 'number' ? body.message.id : null);
           setStatus('success');
         } else if (response.status === 409) {
           setStatus('full');
@@ -151,10 +154,10 @@ export default function SignForm({ isFull = false }: SignFormProps) {
             <CheckIcon className={styles.successIcon} aria-hidden />
             <div className={styles.successText}>Message sent</div>
             <Link
-              href="/"
+              href={createdId === null ? '/' : `/?signed=${createdId}`}
               className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}
             >
-              See the card &rarr;
+              {createdId === null ? 'See the card' : 'See your message'} &rarr;
             </Link>
           </div>
         </div>
