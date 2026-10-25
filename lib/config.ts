@@ -6,6 +6,9 @@ export const MESSAGE_ORDER = [{ createdAt: 'asc' as const }, { id: 'asc' as cons
 
 export const MAX_MESSAGE_LENGTH = 100;
 
+// Keeps a message from being a column of blank lines.
+export const MAX_MESSAGE_LINES = 4;
+
 // Single source of truth for the fonts a message can use. app/fonts.ts maps
 // each of these to a next/font class name.
 export const ALLOWED_FONTS = [
@@ -24,6 +27,16 @@ export type FontName = (typeof ALLOWED_FONTS)[number];
 // Per-client limit on POST /api/message: RATE_LIMIT_MAX requests per window.
 export const RATE_LIMIT_MAX = 5;
 export const RATE_LIMIT_WINDOW_SECONDS = 10 * 60;
+
+// Requests that fail validation are counted in their own, larger bucket.
+export const RATE_LIMIT_INVALID_MAX = 30;
+
+// Failed admin logins per window.
+export const RATE_LIMIT_ADMIN_MAX = 10;
+
+// Clients whose address cannot be determined in production share one bucket
+// with this many times the normal limit.
+export const RATE_LIMIT_UNKNOWN_FACTOR = 6;
 
 // Card front image. Set NEXT_PUBLIC_CARD_FRONT_URL to a local path (e.g. "/front.jpg"
 // for a file in public/) or an https URL. Remote hosts must also be allowed in

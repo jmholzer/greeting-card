@@ -80,9 +80,18 @@ Copy `.env.example` to `.env` and fill it in. Use `.env` rather than `.env.local
 | `POSTGRES_URL_NON_POOLING` | Direct PostgreSQL connection string, used by Prisma for schema changes. It can be the same as `POSTGRES_PRISMA_URL` for a local database. |
 | `NEXT_PUBLIC_CARD_FRONT_URL` | Optional. Overrides the default card front with a path in `public/` (e.g. `/front.jpg`) or an `https://` URL. Read at build time. |
 | `NEXT_PUBLIC_CARD_BACKGROUND_COLOR` | Optional. Page background colour: hex, colour name, or `rgb()`/`hsl()`. Defaults to `#e66b1e`. Read at build time. |
+| `ADMIN_TOKEN` | Optional. A long random secret that enables the admin delete route (see [Moderation](#moderation)). Leave it unset to keep the route disabled. Generate one with `openssl rand -hex 32` and never commit it. |
 | `HOST` | The base URL of the running site, with no trailing slash (e.g. `http://localhost:3000` locally, or your deployment URL). The home page uses it to fetch messages from `/api/messages`. |
 
 On Vercel, the two `POSTGRES_*` variables are added for you when you connect a Vercel Postgres database. You only need to add `HOST` yourself.
+
+## Moderation
+
+To remove a message, set `ADMIN_TOKEN` and call the delete route with it. Message ids are in the `/api/messages` response.
+
+    curl -X DELETE -H "Authorization: Bearer $ADMIN_TOKEN" https://your-site.example/api/admin/messages/<id>
+
+Without `ADMIN_TOKEN` the route returns 404. After 10 wrong tokens from one address in 10 minutes it returns 429.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
