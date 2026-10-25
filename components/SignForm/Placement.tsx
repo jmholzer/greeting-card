@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, MutableRefObject, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import styles from './placement.module.css';
 
 import MessageBox, { boxStyle } from '@/components/Card/MessageBox';
@@ -98,11 +99,17 @@ function enlarge(box: Geometry, limits: TextLimits): Geometry | null {
 }
 
 /** Keeps at most four lines and the character limit. Extra lines are reported so the form can say so. */
-function limitText(value: string): { text: string; extraLine: boolean } {
+function limitText(previous: string, value: string): { text: string; extraLine: boolean } {
   const normalized = value.replace(/\r\n?/g, '\n').slice(0, MAX_MESSAGE_LENGTH);
   const lines = normalized.split('\n');
   if (lines.length <= MAX_MESSAGE_LINES) return { text: normalized, extraLine: false };
-  return { text: lines.slice(0, MAX_MESSAGE_LINES).join('\n'), extraLine: true };
+  const kept = lines.slice(0, MAX_MESSAGE_LINES).join('\n');
+  const prev = previous.replace(/\r\n?/g, '\n');
+  // A new break in a full message must not throw away the lines already written.
+  if (prev.split('\n').length >= MAX_MESSAGE_LINES && !kept.startsWith(prev)) {
+    return { text: prev, extraLine: true };
+  }
+  return { text: kept, extraLine: true };
 }
 
 /**
@@ -127,7 +134,6 @@ export default function Placement({
   const surfaceRef = useRef<HTMLDivElement>(null);
   const draftRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const pendingFocus = useRef(false);
   const didMountFocus = useRef(false);
   const growWarned = useRef('');
   const gestureRef = useRef<SurfaceGesture | null>(null);
@@ -277,28 +283,19 @@ export default function Placement({
     return () => clearTimeout(timer);
   }, [lineTick]);
 
-  useEffect(() => {
-    if (!box || !pendingFocus.current) return;
-    pendingFocus.current = false;
-    const frame = requestAnimationFrame(() => {
-      inputRef.current?.focus({ preventScroll: true });
-      inputRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [box]);
-
-  useEffect(() => {
+  // Focus while the box is already on screen, such as when editing. A phone waits for a tap, so the keyboard does not open on its own.
+  useLayoutEffect(() => {
     if (!focusOnMount || didMountFocus.current || !box) return;
+    if (window.matchMedia('(pointer: coarse)').matches) {
+      didMountFocus.current = true;
+      return;
+    }
+    const field = inputRef.current;
+    if (!field) return;
     didMountFocus.current = true;
-    if (window.matchMedia('(pointer: coarse)').matches) return;
-    const frame = requestAnimationFrame(() => {
-      const field = inputRef.current;
-      if (!field) return;
-      field.focus({ preventScroll: true });
-      const end = field.value.length;
-      field.setSelectionRange(end, end);
-    });
-    return () => cancelAnimationFrame(frame);
+    field.focus({ preventScroll: true });
+    const end = field.value.length;
+    field.setSelectionRange(end, end);
   }, [focusOnMount, box]);
 
   useEffect(() => {
@@ -334,8 +331,11 @@ export default function Placement({
     }
     const start = clampInside({ x, y, width, height, rotation: 0 });
     const commit = (chosen: Geometry) => {
-      pendingFocus.current = true;
-      onChange(chosen);
+      // Focus in this gesture, after the field is on the page, so a phone can open the keyboard.
+      flushSync(() => {
+        onChange(chosen);
+      });
+      inputRef.current?.focus();
       // A small nudge onto the card is part of placing. Only say so when the box moved to a different spot.
       if (Math.hypot((chosen.x - x) * 1.41, chosen.y - y) > 0.2) setBlocked(BLOCKED_NOTICE);
     };
@@ -422,8 +422,10 @@ export default function Placement({
     if (gesture.last) {
       const fitted = fitBox(gesture.last, text);
       if (!fitted.problem) {
-        pendingFocus.current = true;
-        onChange(fitted.box);
+        flushSync(() => {
+          onChange(fitted.box);
+        });
+        inputRef.current?.focus();
         return;
       }
     }
@@ -448,8 +450,10 @@ export default function Placement({
       else setBlocked(BLOCKED_NOTICES[fitted.problem] ?? BLOCKED_NOTICE);
       return;
     }
-    pendingFocus.current = true;
-    onChange(fitted.box);
+    flushSync(() => {
+      onChange(fitted.box);
+    });
+    inputRef.current?.focus();
   };
 
   const onEditorPointerDown = (event: ReactPointerEvent<HTMLTextAreaElement>) => {
@@ -475,7 +479,7 @@ export default function Placement({
   };
 
   const onEditorChange = (value: string) => {
-    const limited = limitText(value);
+    const limited = limitText(text, value);
     if (limited.extraLine) setLineTick((tick) => tick + 1);
     onTextChange(limited.text);
   };
