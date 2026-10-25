@@ -17,6 +17,7 @@ import styles from './styles.module.css';
 import Card from '@/components/Card/Card';
 import OwnerControls from '@/components/Card/OwnerControls';
 import { useDeviceTilt, useGesture } from '@/components/Card/hooks';
+import { dragDirection, flipDistance, flipProgress, resist } from '@/components/Card/flipDrag';
 import { useHints } from '@/components/Card/useHints';
 import type { HintStep } from '@/components/Card/useHints';
 import { fontFamilyMap } from '@/app/fonts';
@@ -41,7 +42,7 @@ const STEP_FOR_STAGE: Record<Stage, HintStep> = {
 const HINT_TEXT: Record<HintStep, string> = {
   openEnvelope: 'Tap or swipe up to open the envelope',
   takeOut: 'Swipe the card up, or tap it',
-  openCard: 'Tap or swipe to open the card',
+  openCard: 'Tap the card, or pull it far to one side and let go',
 };
 
 // A hint only appears after the visitor has been idle on a step for this long.
@@ -78,6 +79,17 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
   const dragX = useMotionValue(0);
   const pullYSmooth = useSpring(pullY, pullSpring);
   const dragXSmooth = useSpring(dragX, pullSpring);
+  const pull = useMotionValue(0);
+  // Fixed when a drag starts, so the preview never jumps to the other side mid-drag.
+  const pullDirection = useRef<1 | -1 | null>(null);
+  const pullSmooth = useSpring(pull, pullSpring);
+  // True while the drag is far enough that letting go would flip the card.
+  const [committed, setCommitted] = useState(false);
+  const commitScale = useSpring(1, { stiffness: 300, damping: 20 });
+  useEffect(() => {
+    commitScale.set(committed ? 1.03 : 1);
+    if (committed && !reduceMotion && 'vibrate' in navigator) navigator.vibrate(10);
+  }, [committed, commitScale, reduceMotion]);
   const { tiltX: sensorTiltX, tiltY: sensorTiltY, requestPermission } = useDeviceTilt(!reduceMotion);
 
   // The card is only free to tilt, drag and flip once the envelope has finished
@@ -176,6 +188,8 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
     return () => clearTimeout(timer);
   }, [notice]);
 
+  const controllerWidth = () => controllerRef.current?.getBoundingClientRect().width ?? 300;
+
   const height = () => controllerRef.current?.getBoundingClientRect().height ?? 300;
 
   const enlargedMessage =
@@ -217,7 +231,13 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
     onMove: (dx, dy) => {
       if (reduceMotion) return;
       if (stage === 'open') pullY.set(Math.max(-height() * 0.7, Math.min(0, dy) * 0.9));
-      if (clear) dragX.set(dx);
+      if (clear) {
+        dragX.set(dx);
+        const progress = flipProgress(dx, dy, flipDistance(controllerWidth()));
+        pullDirection.current ??= dragDirection(dx, dy);
+        pull.set(pullDirection.current * resist(progress));
+        setCommitted(progress >= 1);
+      }
     },
     onEnd: (dx, dy, vx, vy) => {
       void requestPermission();
@@ -226,10 +246,15 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
       } else if (stage === 'open') {
         if (dy < -height() * 0.15 || vy < -600) advance();
         else pullY.set(0);
-      } else if (clear && Math.max(Math.abs(dx), Math.abs(dy)) > 50 || Math.max(Math.abs(vx), Math.abs(vy)) > 500) {
+      } else if (clear && flipProgress(dx, dy, flipDistance(controllerWidth())) >= 1) {
+        // Decided by where the card is let go, not how far it travelled, and not by speed,
+        // so dragging out and back, or a quick flick, never flips it by accident.
         advance();
       }
       dragX.set(0);
+      pull.set(0);
+      pullDirection.current = null;
+      setCommitted(false);
     },
   });
 
@@ -303,6 +328,7 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
             rotateX: reduceMotion ? 0 : tiltX,
             rotateY: reduceMotion ? 0 : tiltY,
             rotateZ: reduceMotion ? 0 : tilt,
+            scale: reduceMotion ? 1 : commitScale,
             filter: reduceMotion ? 'drop-shadow(0 10px 18px rgba(60, 35, 10, 0.3))' : filter,
             transformPerspective: 1200,
           }}
@@ -310,7 +336,7 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
           <Card
             messages={messages}
             isFlipped={isFlipped}
-            dragX={dragXSmooth}
+            pull={pullSmooth}
             reduceMotion={reduceMotion}
             highlightId={highlightId}
           />
@@ -361,14 +387,20 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
         <OwnerControls messages={ownedMessages} onDelete={deleteOwned} />
       )}
 
+      {committed && (
+        <div className={styles.hintArea} aria-hidden>
+          <p className={styles.hint}>Let go to flip</p>
+        </div>
+      )}
+
       <div className={styles.hintArea} aria-live="polite">
-        {notice ? (
+        {committed ? null : notice ? (
           <p className={styles.hint}>{notice}</p>
         ) : (
           highlighted && isFlipped && <p className={styles.hint}>Your message is highlighted</p>
         )}
         <AnimatePresence>
-          {showHint && (
+          {showHint && !committed && (
             <motion.p
               key={step}
               className={styles.hint}
