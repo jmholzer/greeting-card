@@ -8,6 +8,7 @@ import { AutoTextSize } from 'auto-text-size';
 import styles from './styles.module.css';
 
 import type { Message } from '@/utils/messages';
+import { FLIP_PREVIEW_DEGREES } from '@/components/Card/flipDrag';
 import { assignGridCells } from '@/utils/grid';
 import { CARD_FRONT_SRC } from '@/lib/config';
 
@@ -16,8 +17,8 @@ import { fontFamilyMap } from '@/app/fonts';
 interface CardProps {
   messages: Message[];
   isFlipped: boolean;
-  /** Live horizontal drag offset in px, used to preview the flip while swiping. */
-  dragX: MotionValue<number>;
+  /** Live drag progress, signed, where 1 is the distance that flips the card. Previews the flip. */
+  pull: MotionValue<number>;
   reduceMotion: boolean;
   /** Id of a message to draw attention to, e.g. the one the visitor just wrote. */
   highlightId?: number | null;
@@ -32,10 +33,7 @@ const spring = {
 const gridRows = 4;
 const gridCols = 4;
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
-
-export default function Card({ messages, isFlipped, dragX, reduceMotion, highlightId = null }: CardProps) {
+export default function Card({ messages, isFlipped, pull, reduceMotion, highlightId = null }: CardProps) {
   messages = messages.slice(0, gridRows * gridCols);
   const messageCells = assignGridCells(messages.map((message) => message.id), gridRows, gridCols);
 
@@ -46,8 +44,8 @@ export default function Card({ messages, isFlipped, dragX, reduceMotion, highlig
     return () => controls.stop();
   }, [isFlipped, reduceMotion, angle]);
 
-  const rotateY = useTransform([angle, dragX], ([base, drag]: number[]) =>
-    reduceMotion ? 0 : base + clamp(drag * 0.3, -30, 30),
+  const rotateY = useTransform([angle, pull], ([base, drag]: number[]) =>
+    reduceMotion ? 0 : base + drag * FLIP_PREVIEW_DEGREES,
   );
 
   const fade = { duration: 0.25 };
