@@ -38,6 +38,7 @@ export default function SignForm({ isFull = false }: SignFormProps) {
     initialValues: {
       text: '',
       fontFamily: fonts[0],
+      website: '',
     },
     validate: (values) => {
       const errors: { text?: string } = {};
@@ -180,6 +181,16 @@ export default function SignForm({ isFull = false }: SignFormProps) {
         }}
       >
         <div className={styles.textAreaWrapper}>
+          <div className={styles.honeypot} aria-hidden inert>
+            <label htmlFor="website">Leave this field empty</label>
+            <input
+              id="website"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              {...formik.getFieldProps('website')}
+            />
+          </div>
           <label htmlFor="message-text" className={styles.srOnly}>
             Your message
           </label>
