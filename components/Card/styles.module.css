@@ -47,6 +47,12 @@
     position: absolute;
     inset: 3%;
     z-index: 2;
+    isolation: isolate;
+}
+
+/* Once taken out, the card sits in front of every envelope part. */
+.cardLayerFront {
+    z-index: 6;
 }
 
 .cardTilt {

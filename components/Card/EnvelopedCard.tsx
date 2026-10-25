@@ -52,7 +52,24 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
   const dragX = useMotionValue(0);
   const pullYSmooth = useSpring(pullY, pullSpring);
   const dragXSmooth = useSpring(dragX, pullSpring);
-  const { tiltX, tiltY, requestPermission } = useDeviceTilt(!reduceMotion);
+  const { tiltX: sensorTiltX, tiltY: sensorTiltY, requestPermission } = useDeviceTilt(!reduceMotion);
+
+  // The card is only free to tilt, drag and flip once the envelope has finished
+  // dropping away, so it can never rotate while part of it is still inside.
+  const [settledStage, setSettledStage] = useState<Stage | null>(null);
+  const clear = stage === 'out' && settledStage === 'out';
+  const tiltAmount = useMotionValue(0);
+  const tiltAmountSmooth = useSpring(tiltAmount, { stiffness: 40, damping: 14 });
+  useEffect(() => {
+    if (clear) {
+      tiltAmount.set(1);
+    } else {
+      tiltAmount.set(0);
+      tiltAmountSmooth.jump(0);
+    }
+  }, [clear, tiltAmount, tiltAmountSmooth]);
+  const tiltX = useTransform([sensorTiltX, tiltAmountSmooth], ([t, a]: number[]) => t * a);
+  const tiltY = useTransform([sensorTiltY, tiltAmountSmooth], ([t, a]: number[]) => t * a);
 
   const { ready: hintsReady, isDone, markDone } = useHints();
   const step = STEP_FOR_STAGE[stage];
@@ -83,6 +100,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
 
   const advance = () => {
     void requestPermission();
+    if (stage === 'out' && !clear) return;
     markDone(step);
     if (stage === 'sealed') {
       vibrate(8);
@@ -114,7 +132,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
     onMove: (dx, dy) => {
       if (reduceMotion) return;
       if (stage === 'open') pullY.set(Math.max(-height() * 0.7, Math.min(0, dy) * 0.9));
-      if (stage === 'out') dragX.set(dx);
+      if (clear) dragX.set(dx);
     },
     onEnd: (dx, dy, vx, vy) => {
       void requestPermission();
@@ -123,7 +141,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
       } else if (stage === 'open') {
         if (dy < -height() * 0.15 || vy < -600) advance();
         else pullY.set(0);
-      } else if (Math.max(Math.abs(dx), Math.abs(dy)) > 50 || Math.max(Math.abs(vx), Math.abs(vy)) > 500) {
+      } else if (clear && Math.max(Math.abs(dx), Math.abs(dy)) > 50 || Math.max(Math.abs(vx), Math.abs(vy)) > 500) {
         advance();
       }
       dragX.set(0);
@@ -183,11 +201,12 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
         className={styles.envelopeBack}
         initial={false}
         animate={dropAnimation}
+        onAnimationComplete={() => setSettledStage(stage)}
         aria-hidden
       />
 
       <motion.div
-        className={styles.cardLayer}
+        className={`${styles.cardLayer} ${away ? styles.cardLayerFront : ''}`}
         initial={false}
         animate={cardLayerAnimation}
       >
