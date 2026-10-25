@@ -47,6 +47,9 @@ const HINT_TEXT: Record<HintStep, string> = {
 // A hint only appears after the visitor has been idle on a step for this long.
 const HINT_IDLE_MS = 2000;
 
+// Give up on a delete that has not answered by then, so the confirm dialog can never get stuck.
+const DELETE_TIMEOUT_MS = 15000;
+
 const pullSpring = { stiffness: 260, damping: 28 };
 
 // A message cell narrower than this (in px) is too small to read, so tapping it enlarges it.
@@ -140,10 +143,13 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
   const ownedMessages = ownedReady ? messages.filter((message) => tokens[message.id]) : [];
 
   const deleteOwned = async (message: Message): Promise<string | null> => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), DELETE_TIMEOUT_MS);
     try {
       const response = await fetch(`/api/message/${message.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${tokens[message.id] ?? ''}` },
+        signal: controller.signal,
       });
       // 404: already gone, or no longer ours. Either way there is nothing left to delete.
       if (response.ok || response.status === 404) {
@@ -154,8 +160,13 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
       }
       if (response.status === 429) return 'Too many requests. Please try again later.';
       return 'Could not delete the message. Please try again.';
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return 'Deleting is taking too long. Check your connection and try again.';
+      }
       return 'Could not delete the message. Check your connection and try again.';
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
