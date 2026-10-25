@@ -6,19 +6,24 @@ import { useFormik } from 'formik';
 import Link from 'next/link';
 import { fontFamilyMap } from '@/app/fonts';
 import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGES } from '@/lib/config';
+import FontPicker from '@/components/SignForm/FontPicker';
 
 const fonts: string[] = [...ALLOWED_FONTS];
 const characterLimit = MAX_MESSAGE_LENGTH;
 const placeholder = `Your message here. Don't forget to say who you are :)`;
+
+// The visible counter is hidden from screen readers; this is announced instead,
+// and only when the limit is close, so typing is not interrupted on every key.
+const COUNT_ANNOUNCE_FROM = 20;
 
 interface SignFormProps {
   isFull?: boolean;
 }
 
 export default function SignForm({ isFull = false }: SignFormProps) {
-  const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const textRef = useRef<HTMLTextAreaElement>(null);
+  const successRef = useRef<HTMLDivElement>(null);
 
   const formik = useFormik({
     initialValues: {
@@ -70,24 +75,23 @@ export default function SignForm({ isFull = false }: SignFormProps) {
     }
   }, []);
 
-  const handleFontMenuClick = () => {
-    setIsFontMenuOpen(!isFontMenuOpen);
-  };
+  const succeeded = formik.status === 'success';
+  useEffect(() => {
+    if (succeeded) successRef.current?.focus();
+  }, [succeeded]);
 
-  const handleFontFamilyChange = (font: string) => {
-    formik.setFieldValue('fontFamily', font);
-    setIsFontMenuOpen(false);
-  };
-
-  const handleTextAreaFocus = () => {
-    setIsFontMenuOpen(false);
-  };
+  const submitting = formik.isSubmitting;
+  const length = formik.values.text.length;
+  const remaining = characterLimit - length;
+  const isEmpty = !formik.values.text.trim();
+  const failed = formik.status === 'failure';
+  const errorText = errorMessage || 'Failed to send message. Please try again.';
 
   if (isFull || formik.status === 'full') {
     return (
       <div className={styles.container}>
         <div className={styles.textAreaWrapper}>
-          <div className={styles.statusContainer}>
+          <div className={styles.statusContainer} role="status">
             <div className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}>
               This card is full
             </div>
@@ -106,80 +110,93 @@ export default function SignForm({ isFull = false }: SignFormProps) {
     );
   }
 
+  if (succeeded) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.textAreaWrapper}>
+          <div className={styles.statusContainer} role="status" tabIndex={-1} ref={successRef}>
+            <CheckIcon className={styles.successIcon} aria-hidden />
+            <div className={styles.successText}>Message sent</div>
+            <Link
+              href="/"
+              className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}
+            >
+              See the card &rarr;
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
-      <form onSubmit={formik.handleSubmit}>
+      <form
+        className={styles.form}
+        aria-busy={submitting}
+        onSubmit={(event) => {
+          // The button stays focusable while sending, so guard against a second submit.
+          if (submitting) {
+            event.preventDefault();
+            return;
+          }
+          formik.handleSubmit(event);
+        }}
+      >
         <div className={styles.textAreaWrapper}>
-          {formik.isSubmitting && (
-            <div className={styles.statusContainer}>
-              <span className={styles.loader} />
+          <label htmlFor="message-text" className={styles.srOnly}>
+            Your message
+          </label>
+          <textarea
+            id="message-text"
+            ref={textRef}
+            className={`${styles.messageField} ${fontFamilyMap[formik.values.fontFamily]}`}
+            {...formik.getFieldProps('text')}
+            maxLength={characterLimit}
+            placeholder={placeholder}
+            disabled={submitting}
+            aria-describedby={failed ? 'message-error' : undefined}
+            aria-invalid={failed || undefined}
+          />
+          <div className={styles.bottomBar}>
+            <div className={styles.characterCount} aria-hidden>
+              {length}/{characterLimit}
             </div>
-          )}
-          {formik.status === 'success' && (
-            <div className={styles.statusContainer}>
-              <CheckIcon className={styles.successIcon} />
-              <Link
-                href="/"
-                className={`${styles.successMessage} ${fontFamilyMap['Dancing Script']}`}
-              >
-                See the card &rarr;
-              </Link>
-            </div>
-          )}
-          {!formik.isSubmitting && formik.status !== 'success' && (
-            <>
-              <textarea
-                ref={textRef}
-                className={`${styles.messageField} ${fontFamilyMap[formik.values.fontFamily]}`}
-                {...formik.getFieldProps('text')}
-                maxLength={characterLimit}
-                placeholder={placeholder}
-                disabled={formik.isSubmitting}
-                onFocus={handleTextAreaFocus}
-              />
-              <div className={styles.bottomBar}>
-                <div className={styles.characterCount}>{formik.values.text.length}/{characterLimit}</div>
-                <div className={styles.dropdownContainer}>
-                  <div onClick={handleFontMenuClick} className={styles.dropdownButton}>
-                    <span className={fontFamilyMap[formik.values.fontFamily]}>Choose a Font</span>
-                  </div>
-                  {isFontMenuOpen && (
-                    <div className={styles.dropdownMenu}>
-                      {fonts.map((font) => (
-                        <div
-                          key={font}
-                          onClick={() => handleFontFamilyChange(font)}
-                          className={`${styles.dropdownItem} ${fontFamilyMap[font]}`}
-                        >
-                          Your message
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              {formik.status === 'failure' && (
-                <div className={styles.statusContainer}>
-                  <div className={styles.failureMessage}>{errorMessage || 'Failed to send message. Please try again.'}</div>
-                </div>
-              )}
-            </>
+            <span className={styles.srOnly} role="status">
+              {remaining <= COUNT_ANNOUNCE_FROM
+                ? `${remaining} ${remaining === 1 ? 'character' : 'characters'} left`
+                : ''}
+            </span>
+            <FontPicker
+              fonts={fonts}
+              value={formik.values.fontFamily}
+              onChange={(font) => formik.setFieldValue('fontFamily', font)}
+              disabled={submitting}
+            />
+          </div>
+        </div>
+
+        <div className={styles.errorSlot}>
+          {failed && !submitting && (
+            <p id="message-error" className={styles.failureMessage} role="alert">
+              {errorText}
+            </p>
           )}
         </div>
-        {
-          !formik.isSubmitting && formik.status !== 'success' && (
-            <button
-              type="submit"
-              className={styles.submitButton}
-              disabled={!formik.values.text.trim() || formik.isSubmitting}
-            >
-              <EnvelopeIcon
-                className={styles.sendIcon}
-                style={{ color: (!formik.values.text.trim() || formik.isSubmitting) ? '#858585' : '#f5f5f5' }}
-              />
-            </button>
-          )
-        }
+
+        <button
+          type="submit"
+          className={styles.submitButton}
+          disabled={isEmpty && !submitting}
+          aria-disabled={submitting || undefined}
+        >
+          {submitting ? (
+            <span className={styles.spinner} aria-hidden />
+          ) : (
+            <EnvelopeIcon className={styles.sendIcon} aria-hidden />
+          )}
+          <span>{submitting ? 'Sending' : 'Send'}</span>
+        </button>
       </form>
     </div>
   );
