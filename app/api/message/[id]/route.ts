@@ -3,6 +3,10 @@ import { validateMessage } from '@/lib/validation';
 import { checkRateLimit } from '@/lib/rateLimit';
 import { isSameOrigin } from '@/lib/request';
 import { editTokenMatches, getBearerToken, hashEditToken } from '@/lib/editToken';
+import { MESSAGE_LAYOUT_LOCK_ID } from '@/lib/config';
+import { GEOMETRY_MESSAGES, overlapsAny } from '@/lib/geometry';
+import { getMessages } from '@/utils/messages';
+import type { Message } from '@/utils/messages';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,7 +79,13 @@ async function authorize(
   return { id, token };
 }
 
-/** Changes the text and font of a message: `PATCH /api/message/<id>` with `Authorization: Bearer <edit token>`. */
+class SpotTakenError extends Error {
+  constructor(readonly others: Message[]) {
+    super('spot_taken');
+  }
+}
+
+/** Changes the text, font and place of a message: `PATCH /api/message/<id>` with `Authorization: Bearer <edit token>`. */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!isSameOrigin(request)) {
     return errorResponse(403, 'forbidden_origin', 'Requests must come from this site.');
@@ -113,20 +123,40 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!validation.ok) {
     return rejectInvalid(request, 400, 'invalid_message', validation.message);
   }
-  const { text, fontFamily } = validation.data;
+  const { text, fontFamily, geometry } = validation.data;
 
   const limited = await limitResponse(request, 'edit');
   if (limited) return limited;
 
   try {
-    // The hash is part of the condition, so a token that was replaced in the meantime changes nothing.
-    const result = await prisma.message.updateMany({
-      where: { id: auth.id, editTokenHash: hashEditToken(auth.token) },
-      data: { text, fontFamily },
-    });
-    if (result.count === 0) return notFound();
+    const updated = await prisma.$transaction(async (tx) => {
+      if (geometry) {
+        // Changes to the layout run one at a time, so two messages can never end up on the same spot.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${MESSAGE_LAYOUT_LOCK_ID})`;
+        const others = (await getMessages(tx)).filter((message) => message.id !== auth.id);
+        if (overlapsAny(geometry, others.map((message) => message.box))) {
+          throw new SpotTakenError(others);
+        }
+      }
 
-    const updated = await prisma.message.findUnique({ where: { id: auth.id } });
+      // The hash is part of the condition, so a token that was replaced in the meantime changes nothing.
+      const result = await tx.message.updateMany({
+        where: { id: auth.id, editTokenHash: hashEditToken(auth.token) },
+        data: {
+          text,
+          fontFamily,
+          ...(geometry && {
+            placeX: geometry.x,
+            placeY: geometry.y,
+            placeWidth: geometry.width,
+            placeHeight: geometry.height,
+            placeRotation: geometry.rotation,
+          }),
+        },
+      });
+      if (result.count === 0) return null;
+      return (await getMessages(tx)).find((message) => message.id === auth.id) ?? null;
+    });
     if (!updated) return notFound();
     return Response.json(
       {
@@ -134,12 +164,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           id: updated.id,
           text: updated.text,
           fontFamily: updated.fontFamily,
-          createdAt: updated.createdAt.toISOString(),
+          createdAt: updated.createdAt,
+          box: updated.box,
         },
       },
       { headers: NO_STORE },
     );
   } catch (error) {
+    if (error instanceof SpotTakenError) {
+      return Response.json(
+        { error: 'spot_taken', message: GEOMETRY_MESSAGES.overlap, messages: error.others },
+        { status: 409, headers: NO_STORE },
+      );
+    }
     console.error('Error updating message:', error);
     return errorResponse(500, 'server_error', 'Failed to save message.');
   }

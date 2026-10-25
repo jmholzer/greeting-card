@@ -1,5 +1,10 @@
-// The card back is a 4x4 grid, so it can hold at most 16 messages.
-export const MAX_MESSAGES = 16;
+// The card is full when no smallest box fits any more (see lib/geometry.ts). This is only
+// a backstop that keeps the placement checks fast, and sits well above what can fit.
+export const MAX_MESSAGES = 64;
+
+// Arbitrary constant key for a Postgres advisory lock that serialises every change to the
+// layout, so concurrent requests cannot place two messages on the same spot.
+export const MESSAGE_LAYOUT_LOCK_ID = 4242001;
 
 // Stable ordering: oldest message first, id as a tiebreaker for equal timestamps.
 export const MESSAGE_ORDER = [{ createdAt: 'asc' as const }, { id: 'asc' as const }];

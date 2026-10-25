@@ -201,25 +201,20 @@
 }
 
 .messages {
-    width: 90%;
-    height: 90%;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(4, 1fr);
-    gap: 10px;
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    inset: 5%;
 }
 
 .message {
+    position: absolute;
+    box-sizing: border-box;
     display: flex;
     justify-content: center;
     align-items: center;
     text-align: center;
     word-wrap: break-word;
-    padding: 5px;
+    white-space: pre-line;
+    padding: 2px 3px;
     overflow: hidden;
     text-overflow: ellipsis;
 }

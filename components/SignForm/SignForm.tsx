@@ -1,13 +1,17 @@
 'use client';
 import React, { useState, useRef, useEffect } from "react";
 import styles from './styles.module.css';
-import { EnvelopeIcon, CheckIcon } from '@heroicons/react/24/solid';
+import { EnvelopeIcon, CheckIcon, ArrowRightIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 import { useFormik } from 'formik';
 import Link from 'next/link';
 import { fontFamilyMap } from '@/app/fonts';
-import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGE_LINES, MAX_MESSAGES } from '@/lib/config';
+import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGE_LINES } from '@/lib/config';
+import { defaultSize, findFreeSpot } from '@/lib/geometry';
+import type { Geometry } from '@/lib/geometry';
 import { sanitizeText } from '@/lib/validation';
 import FontPicker from '@/components/SignForm/FontPicker';
+import Placement from '@/components/SignForm/Placement';
+import type { Message } from '@/utils/messages';
 import { forgetOwnedMessage, saveOwnedMessage, useOwnedMessages } from '@/lib/ownedMessages';
 
 const fonts: string[] = [...ALLOWED_FONTS];
@@ -39,11 +43,19 @@ function formatWait(seconds: number): string {
 
 interface SignFormProps {
   isFull?: boolean;
+  /** The messages already on the card (without the one being edited). A new message may not overlap them. */
+  messages?: Message[];
   /** When set, the form changes this existing message instead of writing a new one. */
-  editing?: { id: number; text: string; fontFamily: string };
+  editing?: { id: number; text: string; fontFamily: string; box: Geometry };
 }
 
-export default function SignForm({ isFull = false, editing }: SignFormProps) {
+type Step = 'write' | 'place';
+
+export default function SignForm({ isFull = false, messages = [], editing }: SignFormProps) {
+  const [step, setStep] = useState<Step>('write');
+  const [others, setOthers] = useState<Message[]>(messages);
+  const [box, setBox] = useState<Geometry | null>(editing?.box ?? null);
+  const [placeNotice, setPlaceNotice] = useState('');
   const { ready: ownedReady, tokens } = useOwnedMessages();
   const editToken = editing ? tokens[editing.id] : undefined;
   const [errorMessage, setErrorMessage] = useState('');
@@ -51,11 +63,30 @@ export default function SignForm({ isFull = false, editing }: SignFormProps) {
   const textRef = useRef<HTMLTextAreaElement>(null);
   // Reused when the same message is sent again after a failure, so the server
   // can tell a retry from a new message and never saves it twice.
-  const attempt = useRef<{ id: string; text: string; fontFamily: string } | null>(null);
+  const attempt = useRef<{ id: string; text: string; fontFamily: string; box: string } | null>(null);
   const successRef = useRef<HTMLDivElement>(null);
+
+  // Another message took the chosen spot. Show the card as it is now and move the box to the
+  // nearest free spot, so the signer only has to check it and send again. Nothing typed is lost.
+  const respotAfterConflict = (current: Message[], chosen: Geometry, setStatus: (status: string) => void) => {
+    setOthers(current);
+    const spot = findFreeSpot(
+      current.map((message) => message.box),
+      { width: chosen.width, height: chosen.height },
+      chosen,
+    );
+    if (!spot) {
+      setStatus('full');
+      return;
+    }
+    setBox(spot);
+    setPlaceNotice('Someone just wrote there, so your message moved to a free spot. Check it, then send.');
+    setStatus('idle');
+  };
 
   const saveEdit = async (
     values: { text: string; fontFamily: string; hp_extra: string },
+    chosen: Geometry,
     setFieldValue: (field: string, value: string, validate?: boolean) => void,
     setStatus: (status: string) => void,
     id: number,
@@ -69,11 +100,15 @@ export default function SignForm({ isFull = false, editing }: SignFormProps) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${editToken ?? ''}`,
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, geometry: chosen }),
         signal: controller.signal,
       });
       if (response.ok) {
         setStatus('success');
+      } else if (response.status === 409) {
+        const body = await response.json().catch(() => null);
+        if (Array.isArray(body?.messages)) respotAfterConflict(body.messages, chosen, setStatus);
+        else setStatus('failure');
       } else if (response.status === 404) {
         forgetOwnedMessage(id);
         setStatus('gone');
@@ -116,16 +151,44 @@ export default function SignForm({ isFull = false, editing }: SignFormProps) {
     },
     onSubmit: async (values, { setSubmitting, setStatus, setFieldValue }) => {
       setErrorMessage('');
+      if (step === 'write') {
+        // First step done: place the message, starting from a free spot.
+        let start = box;
+        if (!start) {
+          start = findFreeSpot(
+            others.map((message) => message.box),
+            defaultSize(sanitizeText(values.text).length),
+          );
+          if (!start) {
+            setStatus('full');
+            setSubmitting(false);
+            return;
+          }
+          setBox(start);
+        }
+        setStep('place');
+        setSubmitting(false);
+        return;
+      }
+      if (!box) {
+        setSubmitting(false);
+        return;
+      }
+      setPlaceNotice('');
       if (editing) {
-        await saveEdit(values, setFieldValue, setStatus, editing.id);
+        await saveEdit(values, box, setFieldValue, setStatus, editing.id);
         setSubmitting(false);
         return;
       }
       const previous = attempt.current;
+      const boxKey = JSON.stringify(box);
       const sameMessage =
-        previous !== null && previous.text === values.text && previous.fontFamily === values.fontFamily;
+        previous !== null &&
+        previous.text === values.text &&
+        previous.fontFamily === values.fontFamily &&
+        previous.box === boxKey;
       const requestId = sameMessage ? previous.id : newRequestId();
-      attempt.current = { id: requestId, text: values.text, fontFamily: values.fontFamily };
+      attempt.current = { id: requestId, text: values.text, fontFamily: values.fontFamily, box: boxKey };
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -135,7 +198,7 @@ export default function SignForm({ isFull = false, editing }: SignFormProps) {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ ...values, requestId }),
+          body: JSON.stringify({ ...values, requestId, geometry: box }),
           signal: controller.signal,
         });
         if (response.ok) {
@@ -151,7 +214,12 @@ export default function SignForm({ isFull = false, editing }: SignFormProps) {
             setStatus('success');
           }
         } else if (response.status === 409) {
-          setStatus('full');
+          const body = await response.json().catch(() => null);
+          if (body?.error === 'spot_taken' && Array.isArray(body.messages)) {
+            respotAfterConflict(body.messages, box, setStatus);
+          } else {
+            setStatus('full');
+          }
         } else {
           const body = await response.json().catch(() => null);
           const wait = Number(response.headers.get('Retry-After'));
@@ -182,14 +250,19 @@ export default function SignForm({ isFull = false, editing }: SignFormProps) {
   }, [setFieldValue, editing]);
 
   const formVisible = !editing || (ownedReady && Boolean(editToken));
+  const placeHeadingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    if (!formVisible) return;
+    if (step === 'place') placeHeadingRef.current?.focus();
+  }, [step]);
+
+  useEffect(() => {
+    if (!formVisible || step !== 'write') return;
     // On a phone, focusing here would raise the keyboard before the visitor asked for it.
     if (window.matchMedia('(pointer: coarse)').matches) return;
     const field = textRef.current;
     field?.focus();
     if (editing && field) field.setSelectionRange(field.value.length, field.value.length);
-  }, [editing, formVisible]);
+  }, [editing, formVisible, step]);
 
   const [copied, setCopied] = useState(false);
   const copyDraft = async () => {
@@ -251,7 +324,7 @@ export default function SignForm({ isFull = false, editing }: SignFormProps) {
               This card is full
             </div>
             <div className={styles.fullMessage}>
-              All {MAX_MESSAGES} messages have been written, so it can&apos;t take any more.
+              There is no room left on it for another message.
             </div>
             {draft && (
               <div className={styles.draft}>
@@ -295,6 +368,83 @@ export default function SignForm({ isFull = false, editing }: SignFormProps) {
     );
   }
 
+  const honeypot = (
+    <div className={styles.honeypot} aria-hidden inert>
+      <label htmlFor="hp-extra">Leave this field empty</label>
+      <input
+        id="hp-extra"
+        type="text"
+        tabIndex={-1}
+        autoComplete="off"
+        {...formik.getFieldProps('hp_extra')}
+      />
+    </div>
+  );
+
+  if (step === 'place' && box) {
+    return (
+      <form
+        className={styles.placeContainer}
+        aria-busy={submitting}
+        onSubmit={(event) => {
+          if (submitting) {
+            event.preventDefault();
+            return;
+          }
+          formik.handleSubmit(event);
+        }}
+      >
+        {honeypot}
+        <h2 ref={placeHeadingRef} tabIndex={-1} className={styles.srOnly}>
+          Place your message on the card
+        </h2>
+        <Placement
+          others={others}
+          text={cleanedText}
+          fontFamily={formik.values.fontFamily}
+          box={box}
+          onChange={setBox}
+          disabled={submitting}
+          notice={placeNotice}
+          actions={
+            <>
+              {failed && !submitting && (
+                <p id="message-error" className={styles.failureMessage} role="alert">
+                  {errorText}
+                </p>
+              )}
+              <div className={styles.actions}>
+                <button
+                  type="button"
+                  className={styles.cancelLink}
+                  onClick={() => setStep('write')}
+                  disabled={submitting}
+                >
+                  <ArrowLeftIcon className={styles.backIcon} aria-hidden />
+                  Back
+                </button>
+                <button
+                  type="submit"
+                  className={styles.submitButton}
+                  aria-disabled={submitting || undefined}
+                >
+                  {submitting ? (
+                    <span className={styles.spinner} aria-hidden />
+                  ) : editing ? (
+                    <CheckIcon className={styles.sendIcon} aria-hidden />
+                  ) : (
+                    <EnvelopeIcon className={styles.sendIcon} aria-hidden />
+                  )}
+                  <span>{submitting ? (editing ? 'Saving' : 'Sending') : editing ? 'Save' : 'Send'}</span>
+                </button>
+              </div>
+            </>
+          }
+        />
+      </form>
+    );
+  }
+
   return (
     <div className={styles.container}>
       <form
@@ -310,16 +460,7 @@ export default function SignForm({ isFull = false, editing }: SignFormProps) {
         }}
       >
         <div className={styles.textAreaWrapper}>
-          <div className={styles.honeypot} aria-hidden inert>
-            <label htmlFor="hp-extra">Leave this field empty</label>
-            <input
-              id="hp-extra"
-              type="text"
-              tabIndex={-1}
-              autoComplete="off"
-              {...formik.getFieldProps('hp_extra')}
-            />
-          </div>
+          {honeypot}
           <label htmlFor="message-text" className={styles.srOnly}>
             Your message
           </label>
@@ -378,14 +519,8 @@ export default function SignForm({ isFull = false, editing }: SignFormProps) {
             disabled={(isEmpty || tooManyLines) && !submitting}
             aria-disabled={submitting || undefined}
           >
-            {submitting ? (
-              <span className={styles.spinner} aria-hidden />
-            ) : editing ? (
-              <CheckIcon className={styles.sendIcon} aria-hidden />
-            ) : (
-              <EnvelopeIcon className={styles.sendIcon} aria-hidden />
-            )}
-            <span>{submitting ? (editing ? 'Saving' : 'Sending') : editing ? 'Save' : 'Send'}</span>
+            <span>Next</span>
+            <ArrowRightIcon className={styles.sendIcon} aria-hidden />
           </button>
         </div>
       </form>

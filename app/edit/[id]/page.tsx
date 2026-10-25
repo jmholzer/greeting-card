@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { notFound } from 'next/navigation';
 import styles from '../../page.module.css';
 import SignForm from '@/components/SignForm/SignForm';
-import prisma from '@/lib/prisma';
+import { getMessages } from '@/utils/messages';
 import { CARD_BACKGROUND_COLOR } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
@@ -22,15 +22,15 @@ export default async function Edit({ params }: EditProps) {
   const id = Number(rawId);
 
   // Only the text and font are read. Whether the browser may change it is decided by the API.
-  const message = await prisma.message.findUnique({
-    where: { id },
-    select: { id: true, text: true, fontFamily: true },
-  });
+  // Only the text, font and place are shown. Whether the browser may change it is decided by the API.
+  const messages = await getMessages();
+  const message = messages.find((candidate) => candidate.id === id);
   if (!message) notFound();
+  const others = messages.filter((candidate) => candidate.id !== id);
 
   return (
     <div className={styles.container} style={{ backgroundColor: CARD_BACKGROUND_COLOR }}>
-      <SignForm editing={message} />
+      <SignForm editing={message} messages={others} />
     </div>
   );
 }

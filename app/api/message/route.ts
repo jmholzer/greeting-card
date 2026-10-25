@@ -1,14 +1,14 @@
 import prisma from '@/lib/prisma';
-import { MAX_MESSAGES } from '@/lib/config';
+import { MAX_MESSAGES, MESSAGE_LAYOUT_LOCK_ID } from '@/lib/config';
+import { defaultSize, findFreeSpot, GEOMETRY_MESSAGES, overlapsAny } from '@/lib/geometry';
+import type { Geometry } from '@/lib/geometry';
+import { getMessages } from '@/utils/messages';
+import type { Message } from '@/utils/messages';
 import { validateMessage } from '@/lib/validation';
 import { checkRateLimit, deleteExpiredRateLimits } from '@/lib/rateLimit';
 import { isSameOrigin } from '@/lib/request';
 import { createEditToken } from '@/lib/editToken';
 import { after } from 'next/server';
-
-// Arbitrary constant key for a Postgres advisory lock that serialises message
-// creation, so concurrent requests cannot push the card past MAX_MESSAGES.
-const CREATE_MESSAGE_LOCK_ID = 4242001;
 
 // A valid message is well under 1 KB, so anything larger is not a real submission.
 const MAX_BODY_BYTES = 2048;
@@ -19,6 +19,12 @@ const TOO_MANY_MESSAGE = 'Too many messages from your network. Please try again 
 const CLEANUP_SAMPLE_RATE = 0.05;
 
 class CardFullError extends Error {}
+
+class SpotTakenError extends Error {
+  constructor(readonly messages: Message[]) {
+    super('spot_taken');
+  }
+}
 
 function errorResponse(
   status: number,
@@ -31,6 +37,7 @@ function errorResponse(
 
 function messageResponse(
   message: { id: number; text: string; fontFamily: string; createdAt: Date },
+  box: Geometry | null,
   status: number,
   editToken: string,
 ) {
@@ -41,11 +48,17 @@ function messageResponse(
         text: message.text,
         fontFamily: message.fontFamily,
         createdAt: message.createdAt.toISOString(),
+        box,
       },
       editToken,
     },
     { status, headers: { 'Cache-Control': 'no-store' } },
   );
+}
+
+async function boxOf(id: number, db?: Parameters<typeof getMessages>[0]): Promise<Geometry | null> {
+  const messages = await getMessages(db);
+  return messages.find((message) => message.id === id)?.box ?? null;
 }
 
 function unavailableResponse(retryAfterSeconds: number) {
@@ -111,7 +124,19 @@ export async function POST(request: Request) {
   if (!validation.ok) {
     return rejectInvalid(400, 'invalid_message', validation.message);
   }
-  const { text, fontFamily, requestId } = validation.data;
+  const { text, fontFamily, requestId, geometry } = validation.data;
+
+  // Someone else may have taken the chosen spot since the signer opened the page. The reply carries
+  // the card as it is now, so the signer can pick another spot without retyping anything.
+  const spotTaken = async (messages: Message[]) => {
+    const rateLimit = await checkRateLimit(request, 'invalid');
+    if (rateLimit.unavailable) return unavailableResponse(rateLimit.retryAfterSeconds);
+    if (rateLimit.limited) return limitedResponse(rateLimit.retryAfterSeconds, TOO_MANY_MESSAGE);
+    return Response.json(
+      { error: 'spot_taken', message: GEOMETRY_MESSAGES.overlap, messages },
+      { status: 409, headers: { 'Cache-Control': 'no-store' } },
+    );
+  };
 
   // A retry of a submit that already went through gets the saved message back,
   // without using any of the rate limit allowance. Only the hash of the edit token
@@ -123,10 +148,21 @@ export async function POST(request: Request) {
       if (existing) {
         const { token, hash } = createEditToken();
         await prisma.message.update({ where: { id: existing.id }, data: { editTokenHash: hash } });
-        return messageResponse(existing, 200, token);
+        return messageResponse(existing, await boxOf(existing.id), 200, token);
       }
     } catch (error) {
       console.error('Error checking request id:', error);
+      return errorResponse(500, 'server_error', 'Failed to save message.');
+    }
+  }
+
+  // Checked before the sign allowance is used, so picking a taken spot never costs a try.
+  if (geometry) {
+    try {
+      const current = await getMessages();
+      if (overlapsAny(geometry, current.map((message) => message.box))) return spotTaken(current);
+    } catch (error) {
+      console.error('Error checking the spot:', error);
       return errorResponse(500, 'server_error', 'Failed to save message.');
     }
   }
@@ -142,28 +178,49 @@ export async function POST(request: Request) {
 
   try {
     const saved = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${CREATE_MESSAGE_LOCK_ID})`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${MESSAGE_LAYOUT_LOCK_ID})`;
 
       // Another request with the same id may have won while this one waited for the lock.
       if (requestId) {
         const existing = await tx.message.findUnique({ where: { requestId } });
         if (existing) {
           await tx.message.update({ where: { id: existing.id }, data: { editTokenHash: hash } });
-          return { message: existing, created: false };
+          return { message: existing, box: await boxOf(existing.id, tx), created: false };
         }
       }
 
-      const count = await tx.message.count();
-      if (count >= MAX_MESSAGES) {
-        throw new CardFullError();
+      const current = await getMessages(tx);
+      if (current.length >= MAX_MESSAGES) throw new CardFullError();
+      const taken = current.map((message) => message.box);
+
+      let box = geometry;
+      if (box) {
+        if (overlapsAny(box, taken)) throw new SpotTakenError(current);
+      } else {
+        // A client that sent no spot (an old tab, or a script) gets a free one.
+        box = findFreeSpot(taken, defaultSize(text.length));
+        if (!box) throw new CardFullError();
       }
 
-      const created = await tx.message.create({ data: { text, fontFamily, requestId, editTokenHash: hash } });
-      return { message: created, created: true };
+      const created = await tx.message.create({
+        data: {
+          text,
+          fontFamily,
+          requestId,
+          editTokenHash: hash,
+          placeX: box.x,
+          placeY: box.y,
+          placeWidth: box.width,
+          placeHeight: box.height,
+          placeRotation: box.rotation,
+        },
+      });
+      return { message: created, box, created: true };
     });
 
-    return messageResponse(saved.message, saved.created ? 201 : 200, token);
+    return messageResponse(saved.message, saved.box, saved.created ? 201 : 200, token);
   } catch (error) {
+    if (error instanceof SpotTakenError) return spotTaken(error.messages);
     if (error instanceof CardFullError) {
       return errorResponse(
         409,

@@ -53,9 +53,28 @@ const DELETE_TIMEOUT_MS = 15000;
 
 const pullSpring = { stiffness: 260, damping: 28 };
 
-// A message cell narrower than this (in px) is too small to read, so tapping it enlarges it.
+// A message box narrower or shorter than this (in px) is too small to read, so tapping it enlarges it.
 // It depends on the card's size, not the screen width, so landscape phones work too.
-const ENLARGE_BELOW_CELL_WIDTH = 120;
+const ENLARGE_BELOW_WIDTH = 120;
+const ENLARGE_BELOW_HEIGHT = 40;
+
+/** Whether a screen point is on a message box, allowing for the box being turned. */
+function isOnMessage(el: HTMLElement, point: { x: number; y: number }): boolean {
+  const rect = el.getBoundingClientRect();
+  if (point.x < rect.left || point.x > rect.right || point.y < rect.top || point.y > rect.bottom) {
+    return false;
+  }
+  const matrix = new DOMMatrix(getComputedStyle(el).transform);
+  const angle = Math.atan2(matrix.b, matrix.a);
+  const cos = Math.abs(Math.cos(angle));
+  const sin = Math.abs(Math.sin(angle));
+  const scale = rect.width / (el.offsetWidth * cos + el.offsetHeight * sin || 1);
+  const dx = point.x - (rect.left + rect.width / 2);
+  const dy = point.y - (rect.top + rect.height / 2);
+  const localX = dx * Math.cos(angle) + dy * Math.sin(angle);
+  const localY = -dx * Math.sin(angle) + dy * Math.cos(angle);
+  return Math.abs(localX) <= (el.offsetWidth * scale) / 2 && Math.abs(localY) <= (el.offsetHeight * scale) / 2;
+}
 
 export default function EnvelopedCard({ messages, highlightId = null }: EnvelopedCardProps) {
   const reduceMotion = useReducedMotion() ?? false;
@@ -202,11 +221,10 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
   const handleTap = (point?: { x: number; y: number }) => {
     if (enlargedId !== null) return;
     if (clear && isFlipped && point) {
-      const cell = [...document.querySelectorAll<HTMLElement>('[data-message-id]')].find((el) => {
-        const rect = el.getBoundingClientRect();
-        return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
-      });
-      if (cell && cell.getBoundingClientRect().width < ENLARGE_BELOW_CELL_WIDTH) {
+      const cell = [...document.querySelectorAll<HTMLElement>('[data-message-id]')].find((el) =>
+        isOnMessage(el, point),
+      );
+      if (cell && (cell.offsetWidth < ENLARGE_BELOW_WIDTH || cell.offsetHeight < ENLARGE_BELOW_HEIGHT)) {
         setEnlargedId(Number(cell.dataset.messageId));
         return;
       }

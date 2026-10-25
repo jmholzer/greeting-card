@@ -1,10 +1,14 @@
 import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGE_LINES } from '@/lib/config';
+import { checkGeometry, GEOMETRY_MESSAGES, parseGeometry } from '@/lib/geometry';
+import type { Geometry } from '@/lib/geometry';
 
 export interface ValidMessage {
   text: string;
   fontFamily: string;
   /** Client-chosen key that makes a retried submit idempotent. */
   requestId: string | null;
+  /** Where the message goes on the card, or null to leave it to the server (create) or unchanged (edit). */
+  geometry: Geometry | null;
 }
 
 const REQUEST_ID = /^[A-Za-z0-9_-]{16,64}$/;
@@ -45,7 +49,7 @@ export function validateMessage(body: unknown): ValidationResult {
     return { ok: false, message: 'Request body must be a JSON object.' };
   }
 
-  const { text, fontFamily, requestId } = body as Record<string, unknown>;
+  const { text, fontFamily, requestId, geometry } = body as Record<string, unknown>;
 
   if (typeof text !== 'string') {
     return { ok: false, message: '"text" must be a string.' };
@@ -74,8 +78,23 @@ export function validateMessage(body: unknown): ValidationResult {
     }
   }
 
+  let box: Geometry | null = null;
+  if (geometry !== undefined && geometry !== null) {
+    const parsed = parseGeometry(geometry);
+    if (!parsed.ok) return { ok: false, message: parsed.message };
+    // Rules that hold wherever the box goes. Overlap depends on the other messages, so it is checked later.
+    const problem = checkGeometry(parsed.data);
+    if (problem) return { ok: false, message: GEOMETRY_MESSAGES[problem] };
+    box = parsed.data;
+  }
+
   return {
     ok: true,
-    data: { text: cleaned, fontFamily, requestId: typeof requestId === 'string' ? requestId : null },
+    data: {
+      text: cleaned,
+      fontFamily,
+      requestId: typeof requestId === 'string' ? requestId : null,
+      geometry: box,
+    },
   };
 }
