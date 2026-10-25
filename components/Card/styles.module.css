@@ -1,9 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Allura&family=Dancing+Script:wght@400..700&family=Dynalight&family=Gloria+Hallelujah&family=Grape+Nuts&family=Great+Vibes&family=Parisienne&display=swap');
 
 .envelopeContainer {
+    --paper: #FBF7F0;
+    --envelope: #E9DFCF;
+    --envelope-lining: #D8CBB5;
+    --ink: #27221F;
+    --noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.25  0 0 0 0 0.15  0 0 0 0.9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+
     position: relative;
     display: grid;
     place-items: center;
+    color: var(--ink);
 }
 
 @media (orientation: portrait) {
@@ -20,60 +27,179 @@
     }
 }
 
-.envelopeFront {
-    background: #efefef;
-    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.25));
-    cursor: pointer;
-    content: "";
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    z-index: 3;
-    background: linear-gradient(-30deg, transparent 50%, #ccc calc(50% + 1px), transparent calc(50% + 1px)),
-        linear-gradient(30deg, #fefefe 50%, #ccc calc(50% + 1px), transparent calc(50% + 1px)),
-        linear-gradient(-30deg, #fefefe 50%, #ccc calc(50% + 1px), transparent calc(50% + 1px));
-    border-radius: 3%;
+.envelopeContainer > *,
+.envelopeContainer * {
+    pointer-events: none;
 }
+
+/* Envelope: back (with lining), card, flap and front pocket, stacked in that order. */
 
 .envelopeBack {
     position: absolute;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     z-index: 1;
-    background: #efefef;
-    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.25));
-    cursor: pointer;
-    backface-visibility: visible;
-    border-radius: 3%;
+    border-radius: 4px;
+    background: var(--envelope-lining);
+    box-shadow: 0 22px 38px rgba(60, 30, 10, 0.32), 0 4px 10px rgba(60, 30, 10, 0.22);
 }
 
-.cardContainer {
-    width: 95%;
-    height: 95%;
-    z-index: 2;
+.cardLayer {
     position: absolute;
+    inset: 3%;
+    z-index: 2;
+    isolation: isolate;
+}
+
+/* Once taken out, the card sits in front of every envelope part. */
+.cardLayerFront {
+    z-index: 6;
+}
+
+.cardTilt {
+    position: absolute;
+    inset: 0;
+    transform-style: flat;
+}
+
+.pocketShadow {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    filter: drop-shadow(0 -1px 1px rgba(60, 30, 10, 0.16)) drop-shadow(0 5px 8px rgba(60, 30, 10, 0.16));
+}
+
+.pocket {
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #ECE3D4 0%, var(--envelope) 55%, #E3D8C6 100%);
+    clip-path: polygon(0 0, 50% 56%, 100% 0, 100% 100%, 0 100%);
+    overflow: hidden;
+}
+
+.flap {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 56%;
+    z-index: 4;
+    transform-origin: 50% 0;
+    transform-style: preserve-3d;
+}
+
+.flapFace {
+    position: absolute;
+    inset: 0;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    backface-visibility: hidden;
+    border-radius: 4px 4px 0 0;
+    overflow: hidden;
+}
+
+.flapOutside {
+    background: linear-gradient(180deg, #EFE6D8 0%, var(--envelope) 70%, #E0D4C0 100%);
+}
+
+.flapInside {
+    background: var(--envelope-lining);
+    transform: rotateX(180deg);
+}
+
+.lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: rgba(80, 55, 30, 0.22);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.lines polyline {
+    vector-effect: non-scaling-stroke;
+}
+
+.controller {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: auto;
+    cursor: grab;
+    touch-action: none;
+    border-radius: 6px;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.controller:active {
+    cursor: grabbing;
+}
+
+.controller:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 6px;
+}
+
+.hintArea {
+    position: absolute;
+    top: calc(100% + 28px);
+    left: 0;
+    width: 100%;
+    min-height: 1.5em;
+    pointer-events: none;
+}
+
+.hint {
+    margin: 0;
+    text-align: center;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    color: #FFF6EA;
+    text-shadow: 0 1px 2px rgba(60, 30, 10, 0.45);
+}
+
+/* Card: cover and inside, both with paper grain. */
+
+.card {
+    position: absolute;
+    inset: 0;
     perspective: 1200px;
     transform-style: preserve-3d;
-    color: #27221F;
 }
 
-.cardFront {
-    width: 100%;
-    height: 100%;
-    background: #ffffff;
+.face {
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--paper);
     backface-visibility: hidden;
-    position: relative;
 }
 
-.cardBack {
-    width: 100%;
-    height: 100%;
-    background: #ffffff;
-    backface-visibility: hidden;
-    position: relative;
+.cover {
+    transform-style: flat;
+}
+
+.coverImage {
+    object-fit: cover;
+}
+
+.inside {
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+.paper {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: var(--noise);
+    opacity: 0.07;
+    mix-blend-mode: multiply;
 }
 
 .messages {
@@ -87,7 +213,6 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    backface-visibility: hidden;
 }
 
 .message {
@@ -97,7 +222,6 @@
     text-align: center;
     word-wrap: break-word;
     padding: 5px;
-    backface-visibility: hidden;
     overflow: hidden;
     text-overflow: ellipsis;
 }
