@@ -143,8 +143,17 @@
     text-align: center;
 }
 
+/* Still in the page while empty, so a screen reader hears the text when it appears. display: none would drop the live region. */
 .help:empty {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .fineTune {
