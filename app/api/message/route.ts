@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   const { text, fontFamily } = validation.data;
 
   try {
-    await prisma.$transaction(async (tx) => {
+    const message = await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${CREATE_MESSAGE_LOCK_ID})`;
 
       const count = await tx.message.count();
@@ -64,10 +64,20 @@ export async function POST(request: Request) {
         throw new CardFullError();
       }
 
-      await tx.message.create({ data: { text, fontFamily } });
+      return tx.message.create({ data: { text, fontFamily } });
     });
 
-    return new Response('Message saved successfully', { status: 200 });
+    return Response.json(
+      {
+        message: {
+          id: message.id,
+          text: message.text,
+          fontFamily: message.fontFamily,
+          createdAt: message.createdAt.toISOString(),
+        },
+      },
+      { status: 201 },
+    );
   } catch (error) {
     if (error instanceof CardFullError) {
       return errorResponse(

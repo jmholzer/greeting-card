@@ -225,3 +225,83 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.highlight {
+    border-radius: 6px;
+    background: rgba(230, 107, 30, 0.14);
+    box-shadow: 0 0 0 2px rgba(230, 107, 30, 0.7);
+}
+
+.highlightPulse {
+    animation: highlightPulse 1.6s ease-in-out 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .highlightPulse {
+        animation: none;
+    }
+}
+
+@keyframes highlightPulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 2px rgba(230, 107, 30, 0.7);
+    }
+
+    50% {
+        box-shadow: 0 0 0 6px rgba(230, 107, 30, 0.25);
+    }
+}
+
+.enlargeOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(40, 20, 5, 0.55);
+    color: #27221F;
+}
+
+.enlargeBubble {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    width: min(92vw, 520px);
+    max-height: 80dvh;
+    overflow-y: auto;
+    padding: 28px 22px 20px;
+    border-radius: 12px;
+    background: #FBF7F0;
+    box-shadow: 0 18px 50px rgba(30, 15, 5, 0.45);
+}
+
+.enlargeText {
+    margin: 0;
+    font-size: clamp(26px, 8vw, 42px);
+    line-height: 1.25;
+    text-align: center;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.enlargeClose {
+    padding: 10px 26px;
+    border: none;
+    border-radius: 999px;
+    background: #27221F;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.enlargeClose:focus-visible {
+    outline: 3px solid #27221F;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px #fff;
+}

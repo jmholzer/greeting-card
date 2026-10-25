@@ -9,17 +9,21 @@ import {
   useSpring,
   useTransform,
 } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './styles.module.css';
 
 import Card from '@/components/Card/Card';
 import { useDeviceTilt, useGesture } from '@/components/Card/hooks';
 import { useHints } from '@/components/Card/useHints';
 import type { HintStep } from '@/components/Card/useHints';
+import { fontFamilyMap } from '@/app/fonts';
 import { Message } from '@/utils/messages';
 
 interface EnvelopedCardProps {
   messages: Message[];
+  /** When set, the card opens straight to the messages with this one highlighted. */
+  highlightId?: number | null;
 }
 
 // sealed: flap closed. open: flap up, card peeking. out: card taken out, envelope gone.
@@ -42,11 +46,22 @@ const HINT_IDLE_MS = 2000;
 
 const pullSpring = { stiffness: 260, damping: 28 };
 
-export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
+// A message cell narrower than this (in px) is too small to read, so tapping it enlarges it.
+// It depends on the card's size, not the screen width, so landscape phones work too.
+const ENLARGE_BELOW_CELL_WIDTH = 120;
+
+export default function EnvelopedCard({ messages, highlightId = null }: EnvelopedCardProps) {
   const reduceMotion = useReducedMotion() ?? false;
-  const [stage, setStage] = useState<Stage>('sealed');
-  const [isFlipped, setIsFlipped] = useState(false);
+  const highlighted = highlightId !== null;
+  const [stage, setStage] = useState<Stage>(highlighted ? 'out' : 'sealed');
+  const [isFlipped, setIsFlipped] = useState(highlighted);
+  const [enlargedId, setEnlargedId] = useState<number | null>(null);
   const controllerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // The shortcut is for the person who just signed. A reload shows the normal envelope.
+    if (highlighted) window.history.replaceState(null, '', window.location.pathname);
+  }, [highlighted]);
 
   const pullY = useMotionValue(0);
   const dragX = useMotionValue(0);
@@ -56,7 +71,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
 
   // The card is only free to tilt, drag and flip once the envelope has finished
   // dropping away, so it can never rotate while part of it is still inside.
-  const [settledStage, setSettledStage] = useState<Stage | null>(null);
+  const [settledStage, setSettledStage] = useState<Stage | null>(highlighted ? 'out' : null);
   const clear = stage === 'out' && settledStage === 'out';
   const tiltAmount = useMotionValue(0);
   const tiltAmountSmooth = useSpring(tiltAmount, { stiffness: 40, damping: 14 });
@@ -73,7 +88,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
 
   const { ready: hintsReady, isDone, markDone } = useHints();
   const step = STEP_FOR_STAGE[stage];
-  const hintPending = hintsReady && !isDone(step);
+  const hintPending = hintsReady && !highlighted && !isDone(step);
   const [idleStep, setIdleStep] = useState<HintStep | null>(null);
   useEffect(() => {
     if (!hintPending) return;
@@ -101,7 +116,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
   const advance = () => {
     void requestPermission();
     if (stage === 'out' && !clear) return;
-    markDone(step);
+    if (!highlighted) markDone(step);
     if (stage === 'sealed') {
       vibrate(8);
       setStage('open');
@@ -116,9 +131,32 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
 
   const height = () => controllerRef.current?.getBoundingClientRect().height ?? 300;
 
+  const enlargedMessage =
+    enlargedId === null ? undefined : messages.find((message) => message.id === enlargedId);
+  const closeEnlarged = useCallback(() => {
+    setEnlargedId(null);
+    controllerRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  const handleTap = (point?: { x: number; y: number }) => {
+    if (enlargedId !== null) return;
+    if (clear && isFlipped && point) {
+      const cell = [...document.querySelectorAll<HTMLElement>('[data-message-id]')].find((el) => {
+        const rect = el.getBoundingClientRect();
+        return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
+      });
+      if (cell && cell.getBoundingClientRect().width < ENLARGE_BELOW_CELL_WIDTH) {
+        setEnlargedId(Number(cell.dataset.messageId));
+        return;
+      }
+    }
+    advance();
+  };
+
   const gesture = useGesture({
-    onTap: advance,
+    onTap: handleTap,
     onKey: (key) => {
+      if (enlargedId !== null) return false;
       if (key === 'ArrowUp' && stage !== 'out') {
         advance();
         return true;
@@ -227,6 +265,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
             isFlipped={isFlipped}
             dragX={dragXSmooth}
             reduceMotion={reduceMotion}
+            highlightId={highlightId}
           />
         </motion.div>
       </motion.div>
@@ -272,6 +311,7 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
       />
 
       <div className={styles.hintArea} aria-live="polite">
+        {highlighted && isFlipped && <p className={styles.hint}>Your message is highlighted</p>}
         <AnimatePresence>
           {showHint && (
             <motion.p
@@ -286,6 +326,66 @@ export default function EnvelopedCard({ messages }: EnvelopedCardProps) {
           )}
         </AnimatePresence>
       </div>
+      {enlargedMessage && (
+        <EnlargedMessage
+          message={enlargedMessage}
+          reduceMotion={reduceMotion}
+          onClose={closeEnlarged}
+        />
+      )}
     </div>
+  );
+}
+
+interface EnlargedMessageProps {
+  message: Message;
+  reduceMotion: boolean;
+  onClose: () => void;
+}
+
+function EnlargedMessage({ message, reduceMotion, onClose }: EnlargedMessageProps) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+      // Close is the only control in the dialog, so Tab stays on it instead of reaching the card behind.
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        closeRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  return createPortal(
+    <motion.div
+      className={styles.enlargeOverlay}
+      initial={{ opacity: reduceMotion ? 1 : 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      onClick={onClose}
+    >
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Message"
+        className={styles.enlargeBubble}
+        initial={reduceMotion ? false : { scale: 0.92 }}
+        animate={{ scale: 1 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <p className={`${styles.enlargeText} ${fontFamilyMap[message.fontFamily] ?? ''}`}>
+          {message.text}
+        </p>
+        <button ref={closeRef} type="button" className={styles.enlargeClose} onClick={onClose}>
+          Close
+        </button>
+      </motion.div>
+    </motion.div>,
+    document.body,
   );
 }

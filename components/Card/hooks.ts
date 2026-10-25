@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import type { KeyboardEvent, PointerEvent } from 'react';
+import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import { useMotionValue, useSpring } from 'framer-motion';
 
 const MAX_TILT_DEGREES = 6;
@@ -82,7 +82,8 @@ export function useDeviceTilt(enabled: boolean) {
 }
 
 interface GestureOptions {
-  onTap: () => void;
+  /** `point` is the click position; it is missing for keyboard activation. */
+  onTap: (point?: { x: number; y: number }) => void;
   onMove?: (dx: number, dy: number) => void;
   onEnd?: (dx: number, dy: number, vx: number, vy: number) => void;
   onKey?: (key: string) => boolean;
@@ -148,12 +149,12 @@ export function useGesture(options: GestureOptions) {
   const onPointerUp = useCallback((event: PointerEvent<HTMLElement>) => finish(event, false), [finish]);
   const onPointerCancel = useCallback((event: PointerEvent<HTMLElement>) => finish(event, true), [finish]);
 
-  const onClick = useCallback(() => {
+  const onClick = useCallback((event: MouseEvent<HTMLElement>) => {
     if (suppressClick.current) {
       suppressClick.current = false;
       return;
     }
-    optionsRef.current.onTap();
+    optionsRef.current.onTap({ x: event.clientX, y: event.clientY });
   }, []);
 
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLElement>) => {
