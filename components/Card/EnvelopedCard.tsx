@@ -139,6 +139,7 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
   }, []);
 
   const handleTap = (point?: { x: number; y: number }) => {
+    if (enlargedId !== null) return;
     if (clear && isFlipped && point) {
       const cell = [...document.querySelectorAll<HTMLElement>('[data-message-id]')].find((el) => {
         const rect = el.getBoundingClientRect();
@@ -155,6 +156,7 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
   const gesture = useGesture({
     onTap: handleTap,
     onKey: (key) => {
+      if (enlargedId !== null) return false;
       if (key === 'ArrowUp' && stage !== 'out') {
         advance();
         return true;
@@ -348,6 +350,11 @@ function EnlargedMessage({ message, reduceMotion, onClose }: EnlargedMessageProp
     closeRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
+      // Close is the only control in the dialog, so Tab stays on it instead of reaching the card behind.
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        closeRef.current?.focus();
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
