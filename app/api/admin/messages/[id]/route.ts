@@ -2,6 +2,8 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { MESSAGE_LAYOUT_LOCK_ID } from '@/lib/config';
+import { pinLegacyBoxes } from '@/utils/messages';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +44,11 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const id = Number(rawId);
 
   try {
-    await prisma.message.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${MESSAGE_LAYOUT_LOCK_ID})`;
+      await pinLegacyBoxes(tx);
+      await tx.message.delete({ where: { id } });
+    });
     return Response.json({ deleted: id }, { headers: NO_STORE });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {

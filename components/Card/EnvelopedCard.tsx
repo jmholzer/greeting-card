@@ -53,9 +53,63 @@ const DELETE_TIMEOUT_MS = 15000;
 
 const pullSpring = { stiffness: 260, damping: 28 };
 
-// A message cell narrower than this (in px) is too small to read, so tapping it enlarges it.
+// Text drawn smaller than this (in px) is too small to read, so tapping it enlarges it.
 // It depends on the card's size, not the screen width, so landscape phones work too.
-const ENLARGE_BELOW_CELL_WIDTH = 120;
+const ENLARGE_BELOW_FONT_PX = 13;
+
+// A message hugs its text, so a fingertip is allowed to be this far (in px) outside it.
+const TAP_SLOP = 8;
+
+function renderedFontSize(el: HTMLElement): number {
+  const text = el.querySelector<HTMLElement>('[data-message-text]');
+  return text ? parseFloat(getComputedStyle(text).fontSize) : Infinity;
+}
+
+/** Whether a screen point is on a message box, allowing for the box being turned. `slop` widens the box by that many px on every side. */
+function isOnMessage(el: HTMLElement, point: { x: number; y: number }, slop: number): boolean {
+  const rect = el.getBoundingClientRect();
+  if (
+    point.x < rect.left - slop ||
+    point.x > rect.right + slop ||
+    point.y < rect.top - slop ||
+    point.y > rect.bottom + slop
+  ) {
+    return false;
+  }
+  const matrix = new DOMMatrix(getComputedStyle(el).transform);
+  const angle = Math.atan2(matrix.b, matrix.a);
+  const cos = Math.abs(Math.cos(angle));
+  const sin = Math.abs(Math.sin(angle));
+  const scale = rect.width / (el.offsetWidth * cos + el.offsetHeight * sin || 1);
+  const dx = point.x - (rect.left + rect.width / 2);
+  const dy = point.y - (rect.top + rect.height / 2);
+  const localX = dx * Math.cos(angle) + dy * Math.sin(angle);
+  const localY = -dx * Math.sin(angle) + dy * Math.cos(angle);
+  return (
+    Math.abs(localX) <= (el.offsetWidth * scale) / 2 + slop &&
+    Math.abs(localY) <= (el.offsetHeight * scale) / 2 + slop
+  );
+}
+
+/**
+ * The message a tap landed on. A point inside a box always beats one that is merely near a
+ * box, so a fingertip on a small message is not swallowed by the slop of a bigger neighbour.
+ * Overlapping hits go to the smallest box, and near misses to the closest.
+ */
+function messageAtPoint(point: { x: number; y: number }): HTMLElement | null {
+  const cells = [...document.querySelectorAll<HTMLElement>('[data-message-id]')];
+  const area = (el: HTMLElement) => el.offsetWidth * el.offsetHeight;
+  const direct = cells.filter((el) => isOnMessage(el, point, 0)).sort((a, b) => area(a) - area(b));
+  if (direct.length > 0) return direct[0];
+  const distance = (el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    return Math.hypot(point.x - (rect.left + rect.width / 2), point.y - (rect.top + rect.height / 2));
+  };
+  const near = cells
+    .filter((el) => isOnMessage(el, point, TAP_SLOP))
+    .sort((a, b) => distance(a) - distance(b));
+  return near[0] ?? null;
+}
 
 export default function EnvelopedCard({ messages, highlightId = null }: EnvelopedCardProps) {
   const reduceMotion = useReducedMotion() ?? false;
@@ -202,11 +256,8 @@ export default function EnvelopedCard({ messages, highlightId = null }: Envelope
   const handleTap = (point?: { x: number; y: number }) => {
     if (enlargedId !== null) return;
     if (clear && isFlipped && point) {
-      const cell = [...document.querySelectorAll<HTMLElement>('[data-message-id]')].find((el) => {
-        const rect = el.getBoundingClientRect();
-        return point.x >= rect.left && point.x <= rect.right && point.y >= rect.top && point.y <= rect.bottom;
-      });
-      if (cell && cell.getBoundingClientRect().width < ENLARGE_BELOW_CELL_WIDTH) {
+      const cell = messageAtPoint(point);
+      if (cell && renderedFontSize(cell) < ENLARGE_BELOW_FONT_PX) {
         setEnlargedId(Number(cell.dataset.messageId));
         return;
       }

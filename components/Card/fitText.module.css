@@ -1,0 +1,13 @@
+/* Line height and side padding are set per text (see inkMetrics in textFit.ts). Used by the visible text and by the hidden element that measures it, so both lay text out the same way. */
+.fit {
+    display: block;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    text-align: center;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    font-kerning: normal;
+}

@@ -48,7 +48,7 @@
 
 View the card at the main route (`/`).
 
-Sign the card at `/sign` (up to 16 messages).
+Sign the card at `/sign`. Write a message, then place it anywhere on the card. Each message can be rotated up to 30 degrees either way and covers at most 1/16 of the card, and messages cannot overlap. What is stored is the footprint of the finished text: its tight bounds plus a small padding (about 5px, defined as a fraction of a reference card height in `lib/geometry.ts`), so a short message drawn in a large box only keeps the space around its letters. The browser measures it after the font has loaded and the server checks the result. The card is full when no box of the minimum size fits. `MAX_MESSAGES` (64) in `lib/config.ts` is only a backstop. The shared rules live in `lib/geometry.ts` and are enforced on the server too. Messages written before this feature get a fixed fallback placement.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -129,6 +129,8 @@ docker run --name greeting-card-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=
    An existing database needs the additive `requestId` column once. Either run `npx prisma db push` or apply `prisma/migrations/20261025130000_add_message_request_id/migration.sql` with `psql`. Existing rows are not changed.
 
    An existing database also needs the additive `editTokenHash` column. Either run `npx prisma db push` or apply `prisma/migrations/20261025140000_add_message_edit_token_hash/migration.sql` with `psql`. Apply it before deploying, because the sign API writes the column.
+
+   An existing database also needs the additive, nullable placement columns (`placeX`, `placeY`, `placeWidth`, `placeHeight`, `placeRotation`). Either run `npx prisma db push` or apply `prisma/migrations/20261025180000_add_message_geometry/migration.sql` with `psql`. Apply it before deploying, because the sign API and the card read the columns.
 
 5. Start the dev server
 

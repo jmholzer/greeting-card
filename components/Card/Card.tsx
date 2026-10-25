@@ -4,15 +4,12 @@ import { animate, motion, useMotionValue, useTransform } from 'framer-motion';
 import type { MotionValue } from 'framer-motion';
 import React, { useEffect } from 'react';
 import Image from 'next/image';
-import { AutoTextSize } from 'auto-text-size';
 import styles from './styles.module.css';
 
 import type { Message } from '@/utils/messages';
+import MessageBox from '@/components/Card/MessageBox';
 import { FLIP_PREVIEW_DEGREES } from '@/components/Card/flipDrag';
-import { assignGridCells } from '@/utils/grid';
 import { CARD_FRONT_SRC } from '@/lib/config';
-
-import { fontFamilyMap } from '@/app/fonts';
 
 interface CardProps {
   messages: Message[];
@@ -30,13 +27,7 @@ const spring = {
   damping: 24,
 };
 
-const gridRows = 4;
-const gridCols = 4;
-
 export default function Card({ messages, isFlipped, pull, reduceMotion, highlightId = null }: CardProps) {
-  messages = messages.slice(0, gridRows * gridCols);
-  const messageCells = assignGridCells(messages.map((message) => message.id), gridRows, gridCols);
-
   const angle = useMotionValue(isFlipped ? -180 : 0);
   useEffect(() => {
     if (reduceMotion) return;
@@ -78,28 +69,16 @@ export default function Card({ messages, isFlipped, pull, reduceMotion, highligh
         transition={fade}
       >
         <div className={styles.messages}>
-          {messages.map((message) => {
-            const fontClassName = fontFamilyMap[message.fontFamily] || '';
-            const cell = messageCells.get(message.id);
-            if (!cell) return null;
-            return (
-              <div
-                key={message.id}
-                data-message-id={message.id}
-                className={`${styles.message} ${fontClassName} ${
-                  message.id === highlightId ? `${styles.highlight} ${styles.highlightPulse}` : ''
-                }`}
-                style={{
-                  gridRow: `${cell[0] + 1} / span 1`,
-                  gridColumn: `${cell[1] + 1} / span 1`,
-                }}
-              >
-                <AutoTextSize mode="box" minFontSizePx={0.1}>
-                  {message.text}
-                </AutoTextSize>
-              </div>
-            );
-          })}
+          {messages.map((message) => (
+            <MessageBox
+              key={message.id}
+              messageId={message.id}
+              text={message.text}
+              fontFamily={message.fontFamily}
+              box={message.box}
+              className={message.id === highlightId ? `${styles.highlight} ${styles.highlightPulse}` : ''}
+            />
+          ))}
         </div>
         <div className={styles.paper} />
       </motion.div>

@@ -16,6 +16,13 @@ model Message {
   fontFamily String
   requestId String? @unique
   editTokenHash String?
+  // Where the message sits on the card, as fractions of the writing surface. All five are set
+  // together; rows without them (written before free placement) get a computed place.
+  placeX        Float?
+  placeY        Float?
+  placeWidth    Float?
+  placeHeight   Float?
+  placeRotation Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
