@@ -11,13 +11,16 @@ interface FontPickerProps {
   value: string;
   onChange: (font: string) => void;
   disabled?: boolean;
+  /** The visitor's own text, shown in each font so they can compare. */
+  previewText?: string;
 }
 
-export default function FontPicker({ fonts, value, onChange, disabled = false }: FontPickerProps) {
+export default function FontPicker({ fonts, value, onChange, disabled = false, previewText = '' }: FontPickerProps) {
   const id = useId();
   const listboxId = `${id}-listbox`;
   const optionId = (index: number) => `${id}-option-${index}`;
 
+  const preview = previewText.replace(/\s+/g, ' ').trim() || 'Your message';
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -137,7 +140,7 @@ export default function FontPicker({ fonts, value, onChange, disabled = false }:
               onClick={() => select(index)}
               onPointerMove={() => setActive(index)}
             >
-              Your message
+              {preview}
             </li>
           ))}
         </ul>
