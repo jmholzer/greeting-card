@@ -5,7 +5,8 @@ import { EnvelopeIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { useFormik } from 'formik';
 import Link from 'next/link';
 import { fontFamilyMap } from '@/app/fonts';
-import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGES } from '@/lib/config';
+import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGE_LINES, MAX_MESSAGES } from '@/lib/config';
+import { sanitizeText } from '@/lib/validation';
 import FontPicker from '@/components/SignForm/FontPicker';
 
 const fonts: string[] = [...ALLOWED_FONTS];
@@ -38,16 +39,19 @@ export default function SignForm({ isFull = false }: SignFormProps) {
     initialValues: {
       text: '',
       fontFamily: fonts[0],
-      website: '',
+      hp_extra: '',
     },
     validate: (values) => {
       const errors: { text?: string } = {};
-      if (!values.text.trim()) {
+      const cleaned = sanitizeText(values.text);
+      if (!cleaned) {
         errors.text = 'Message is required';
+      } else if (cleaned.split('\n').length > MAX_MESSAGE_LINES) {
+        errors.text = `Use at most ${MAX_MESSAGE_LINES} lines`;
       }
       return errors;
     },
-    onSubmit: async (values, { setSubmitting, setStatus }) => {
+    onSubmit: async (values, { setSubmitting, setStatus, setFieldValue }) => {
       setErrorMessage('');
       try {
         const response = await fetch('/api/message', {
@@ -59,8 +63,15 @@ export default function SignForm({ isFull = false }: SignFormProps) {
         });
         if (response.ok) {
           const body = await response.json().catch(() => null);
-          setCreatedId(typeof body?.message?.id === 'number' ? body.message.id : null);
-          setStatus('success');
+          if (typeof body?.message?.id !== 'number') {
+            // The anti-spam check refused it, so do not claim it was sent.
+            setFieldValue('hp_extra', '', false);
+            setErrorMessage('Your message was not sent. Please try again.');
+            setStatus('failure');
+          } else {
+            setCreatedId(body.message.id);
+            setStatus('success');
+          }
         } else if (response.status === 409) {
           setStatus('full');
         } else {
@@ -110,7 +121,9 @@ export default function SignForm({ isFull = false }: SignFormProps) {
   const submitting = formik.isSubmitting;
   const length = formik.values.text.length;
   const remaining = characterLimit - length;
-  const isEmpty = !formik.values.text.trim();
+  const cleanedText = sanitizeText(formik.values.text);
+  const isEmpty = cleanedText === '';
+  const tooManyLines = cleanedText.split('\n').length > MAX_MESSAGE_LINES;
   const failed = formik.status === 'failure';
   const errorText = errorMessage || 'Failed to send message. Please try again.';
 
@@ -182,13 +195,13 @@ export default function SignForm({ isFull = false }: SignFormProps) {
       >
         <div className={styles.textAreaWrapper}>
           <div className={styles.honeypot} aria-hidden inert>
-            <label htmlFor="website">Leave this field empty</label>
+            <label htmlFor="hp-extra">Leave this field empty</label>
             <input
-              id="website"
+              id="hp-extra"
               type="text"
               tabIndex={-1}
               autoComplete="off"
-              {...formik.getFieldProps('website')}
+              {...formik.getFieldProps('hp_extra')}
             />
           </div>
           <label htmlFor="message-text" className={styles.srOnly}>
@@ -225,7 +238,12 @@ export default function SignForm({ isFull = false }: SignFormProps) {
         </div>
 
         <div className={styles.errorSlot}>
-          {failed && !submitting && (
+          {tooManyLines && (
+            <p className={styles.failureMessage} role="status">
+              Please use at most {MAX_MESSAGE_LINES} lines.
+            </p>
+          )}
+          {failed && !submitting && !tooManyLines && (
             <p id="message-error" className={styles.failureMessage} role="alert">
               {errorText}
             </p>
@@ -235,7 +253,7 @@ export default function SignForm({ isFull = false }: SignFormProps) {
         <button
           type="submit"
           className={styles.submitButton}
-          disabled={isEmpty && !submitting}
+          disabled={(isEmpty || tooManyLines) && !submitting}
           aria-disabled={submitting || undefined}
         >
           {submitting ? (
