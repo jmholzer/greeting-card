@@ -264,16 +264,28 @@ export function clampSize(width: number, height: number): { width: number; heigh
   return { width: w, height: h };
 }
 
+/** How small a box may be and still hold this text. The sides are limits, not one fixed shape. */
+export interface TextLimits {
+  /** Narrowest the box may be, so the longest word still fits. */
+  minWidth: number;
+  /** Shortest the box may be. */
+  minHeight: number;
+  /** Smallest area that keeps the text readable. */
+  minArea: number;
+}
+
 /**
- * The smallest box that can hold this text readably. Null when the text needs more than
+ * The limits a box must meet to hold this text. A wider box may be shorter, and the other
+ * way round, as long as both limits and the area hold. Null when the text needs more than
  * the area limit allows, so it cannot be placed at all.
  */
-export function minimumSizeForText(text: string): { width: number; height: number } | null {
-  const width = Math.max(MIN_BOX_WIDTH, longestWord(text) * MIN_WIDTH_PER_LETTER);
-  const neededArea = Math.max(width * MIN_BOX_HEIGHT, countCharacters(text) * MIN_AREA_PER_CHARACTER);
-  const height = Math.max(MIN_BOX_HEIGHT, neededArea / width);
-  if (width > 1 + EPSILON || width * height > MAX_BOX_AREA + EPSILON) return null;
-  return { width, height };
+export function textLimits(text: string): TextLimits | null {
+  const minWidth = Math.max(MIN_BOX_WIDTH, longestWord(text) * MIN_WIDTH_PER_LETTER);
+  const minArea = Math.max(minWidth * MIN_BOX_HEIGHT, countCharacters(text) * MIN_AREA_PER_CHARACTER);
+  const widest = Math.min(1, MAX_BOX_AREA / MIN_BOX_HEIGHT);
+  const minHeight = Math.max(MIN_BOX_HEIGHT, minArea / widest);
+  if (minWidth > widest + EPSILON || minArea > MAX_BOX_AREA + EPSILON) return null;
+  return { minWidth, minHeight, minArea };
 }
 
 /** A size that suits the length of the text, in proportions a signature fits well. */
@@ -299,22 +311,65 @@ export function findFreeSpot(
   near?: Geometry,
   text?: string,
 ): Geometry | null {
-  const floor =
-    text === undefined ? { width: SIGN_MIN_WIDTH, height: SIGN_MIN_HEIGHT } : minimumSizeForText(text);
-  if (!floor) return null;
+  const limits = limitsFor(text);
+  if (!limits) return null;
 
-  const start = clampSize(Math.max(size.width, floor.width), Math.max(size.height, floor.height));
-  for (let shrink = 1; shrink >= 0.5 - EPSILON; shrink -= 0.1) {
-    const fitted = clampSize(
-      Math.max(floor.width, start.width * shrink),
-      Math.max(floor.height, start.height * shrink),
-    );
-    if (fitted.width < floor.width - EPSILON || fitted.height < floor.height - EPSILON) continue;
+  for (const fitted of sizesFor(size, limits)) {
     const spot = bestSpot(others, fitted.width, fitted.height, SCAN_STEP, near);
     if (spot && checkGeometry(spot, others, text) === null) return spot;
   }
-  const spot = bestSpot(others, floor.width, floor.height, FIT_STEP, near);
-  return spot && checkGeometry(spot, others, text) === null ? spot : null;
+  // A finer pass at the smallest shapes, for a gap the coarse scan stepped over.
+  for (const fitted of sizesFor({ width: limits.minWidth, height: limits.minHeight }, limits)) {
+    const spot = bestSpot(others, fitted.width, fitted.height, FIT_STEP, near);
+    if (spot && checkGeometry(spot, others, text) === null) return spot;
+  }
+  return null;
+}
+
+/** The limits that apply: the text's, or the smallest box a signer is offered when there is no text. */
+function limitsFor(text: string | undefined): TextLimits | null {
+  if (text === undefined) {
+    return { minWidth: SIGN_MIN_WIDTH, minHeight: SIGN_MIN_HEIGHT, minArea: SIGN_MIN_WIDTH * SIGN_MIN_HEIGHT };
+  }
+  return textLimits(text);
+}
+
+/**
+ * Sizes to try, biggest first. The requested size is grown until it meets the limits, then
+ * shrunk back down, and a spread of wider-shorter and narrower-taller shapes is added so a
+ * gap that suits one proportion is not missed.
+ */
+function sizesFor(
+  size: { width: number; height: number },
+  limits: TextLimits,
+): { width: number; height: number }[] {
+  const sizes: { width: number; height: number }[] = [];
+  const add = (width: number, height: number) => {
+    if (width < limits.minWidth - EPSILON || height < limits.minHeight - EPSILON) return;
+    if (width * height < limits.minArea - EPSILON) return;
+    if (width * height > MAX_BOX_AREA + EPSILON || width > 1 + EPSILON || height > 1 + EPSILON) return;
+    if (sizes.some((s) => Math.abs(s.width - width) < 1e-4 && Math.abs(s.height - height) < 1e-4)) return;
+    sizes.push({ width, height });
+  };
+
+  let width = Math.max(size.width, limits.minWidth);
+  let height = Math.max(size.height, limits.minHeight, limits.minArea / width);
+  if (width * height > MAX_BOX_AREA) {
+    const fitted = clampSize(width, height);
+    width = Math.max(limits.minWidth, fitted.width);
+    height = Math.max(limits.minHeight, fitted.height, limits.minArea / width);
+  }
+  for (let shrink = 1; shrink >= 0.5 - EPSILON; shrink -= 0.1) {
+    const w = Math.max(limits.minWidth, width * shrink);
+    add(w, Math.max(limits.minHeight, height * shrink, limits.minArea / w));
+  }
+
+  const widest = Math.min(1, MAX_BOX_AREA / limits.minHeight);
+  for (const fraction of [0, 0.5, 1]) {
+    const w = limits.minWidth + (widest - limits.minWidth) * fraction;
+    add(w, Math.max(limits.minHeight, limits.minArea / w));
+  }
+  return sizes;
 }
 
 // Positions to try along one axis: the middle first, then outwards in both directions.
@@ -373,16 +428,7 @@ function bestSpot(
  * With `text`, the box must also be big enough for that text to stay readable.
  */
 export function hasRoomForMinimumBox(others: Geometry[], text?: string): boolean {
-  const floor =
-    text === undefined ? { width: SIGN_MIN_WIDTH, height: SIGN_MIN_HEIGHT } : minimumSizeForText(text);
-  if (!floor) return false;
-  const base: Geometry = { x: 0.5, y: 0.5, width: floor.width, height: floor.height, rotation: 0 };
-  const half = halfExtents(base);
-  for (const y of scanPositions(half.y, FIT_STEP)) {
-    for (const x of scanPositions(half.x, FIT_STEP)) {
-      const candidate = { ...base, x, y };
-      if (checkGeometry(candidate, others, text) === null) return true;
-    }
-  }
-  return false;
+  const limits = limitsFor(text);
+  if (!limits) return false;
+  return findFreeSpot(others, { width: limits.minWidth, height: limits.minHeight }, undefined, text) !== null;
 }

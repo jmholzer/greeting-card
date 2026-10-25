@@ -13,7 +13,7 @@ import {
   MAX_ROTATION,
   MIN_BOX_HEIGHT,
   MIN_BOX_WIDTH,
-  minimumSizeForText,
+  textLimits,
 } from '@/lib/geometry';
 import { GEOMETRY_MESSAGES } from '@/lib/geometry';
 import type { Geometry, GeometryProblem } from '@/lib/geometry';
@@ -156,11 +156,17 @@ export default function Placement({
     </div>
   );
 
-  // The box may not shrink below what this text needs, and widening gives way on the height
-  // (and the other way round) so the area limit never blocks reaching a readable size.
-  const floor = minimumSizeForText(text) ?? { width: MIN_BOX_WIDTH, height: MIN_BOX_HEIGHT };
-  const maxWidthPercent = Math.min(100, Math.floor((MAX_BOX_AREA_EDITOR / floor.height) * 100));
-  const maxHeightPercent = Math.min(100, Math.floor((MAX_BOX_AREA_EDITOR / floor.width) * 100));
+  // Width and height are limits, not one fixed shape: a wider box may be shorter, as long as
+  // the area still holds the text. Widening gives way on the height, and the other way round.
+  const limits = textLimits(text) ?? {
+    minWidth: MIN_BOX_WIDTH,
+    minHeight: MIN_BOX_HEIGHT,
+    minArea: MIN_BOX_WIDTH * MIN_BOX_HEIGHT,
+  };
+  const maxWidthPercent = Math.min(100, Math.floor((MAX_BOX_AREA_EDITOR / limits.minHeight) * 100));
+  const maxHeightPercent = Math.min(100, Math.floor((MAX_BOX_AREA_EDITOR / limits.minWidth) * 100));
+  const minWidthPercent = Math.min(maxWidthPercent, Math.ceil(Math.max(limits.minWidth, limits.minArea / box.height) * 100));
+  const minHeightPercent = Math.min(maxHeightPercent, Math.ceil(Math.max(limits.minHeight, limits.minArea / box.width) * 100));
 
   return (
     <div className={styles.layout}>
@@ -228,12 +234,15 @@ export default function Placement({
             'place-width',
             'Width',
             box.width * 100,
-            Math.ceil(floor.width * 100),
+            minWidthPercent,
             maxWidthPercent,
             'percent of the card width',
             (b, v) => {
-              const width = Math.min(Math.max(v / 100, floor.width), MAX_BOX_AREA_EDITOR / floor.height);
-              const height = Math.max(floor.height, Math.min(b.height, MAX_BOX_AREA_EDITOR / width));
+              const width = Math.min(Math.max(v / 100, limits.minWidth), MAX_BOX_AREA_EDITOR / limits.minHeight);
+              const height = Math.min(
+                Math.max(b.height, limits.minHeight, limits.minArea / width),
+                MAX_BOX_AREA_EDITOR / width,
+              );
               return clampInside({ ...b, width, height });
             },
           )}
@@ -241,12 +250,15 @@ export default function Placement({
             'place-height',
             'Height',
             box.height * 100,
-            Math.ceil(floor.height * 100),
+            minHeightPercent,
             maxHeightPercent,
             'percent of the card height',
             (b, v) => {
-              const height = Math.min(Math.max(v / 100, floor.height), MAX_BOX_AREA_EDITOR / floor.width);
-              const width = Math.max(floor.width, Math.min(b.width, MAX_BOX_AREA_EDITOR / height));
+              const height = Math.min(Math.max(v / 100, limits.minHeight), MAX_BOX_AREA_EDITOR / limits.minWidth);
+              const width = Math.min(
+                Math.max(b.width, limits.minWidth, limits.minArea / height),
+                MAX_BOX_AREA_EDITOR / height,
+              );
               return clampInside({ ...b, width, height });
             },
           )}
