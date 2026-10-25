@@ -112,6 +112,89 @@ function limitText(previous: string, value: string): { text: string; extraLine: 
   return { text: kept, extraLine: true };
 }
 
+const KEYBOARD_SLACK = 140;
+
+function visibleHeight(): number {
+  return window.visualViewport?.height ?? window.innerHeight;
+}
+
+/**
+ * Blur runs before the tap that left the field becomes a click, while the keyboard is still open.
+ * Keep the large card until that click has landed and the keyboard has closed.
+ * Returns a function that cancels the wait.
+ */
+function holdLargeCard(baseline: number, field: HTMLTextAreaElement | null, onRelease: () => void): () => void {
+  let settled = false;
+  let watching = false;
+  let wait = 0;
+  let giveUp = 0;
+  let onClick: (() => void) | null = null;
+  const viewport = window.visualViewport;
+  const keyboardOpen = () => baseline > 0 && visibleHeight() < baseline - KEYBOARD_SLACK;
+
+  const clearWatch = () => {
+    if (!watching) return;
+    watching = false;
+    viewport?.removeEventListener('resize', settle);
+    window.removeEventListener('resize', settle);
+  };
+
+  const clearClick = () => {
+    if (!onClick) return;
+    window.removeEventListener('click', onClick);
+    onClick = null;
+  };
+
+  const finish = (release: boolean) => {
+    if (settled) return;
+    settled = true;
+    window.clearTimeout(wait);
+    window.clearTimeout(giveUp);
+    window.removeEventListener('pointerup', afterPointer);
+    window.removeEventListener('pointercancel', afterPointer);
+    clearClick();
+    clearWatch();
+    if (release) onRelease();
+  };
+
+  const settle = () => {
+    if (settled) return;
+    // Focused again. The focus handler keeps the large size.
+    if (field && document.activeElement === field) {
+      finish(false);
+      return;
+    }
+    if (keyboardOpen()) {
+      if (watching) return;
+      watching = true;
+      viewport?.addEventListener('resize', settle);
+      window.addEventListener('resize', settle);
+      return;
+    }
+    finish(true);
+  };
+
+  // The click that left the field follows pointerup, sometimes after a short delay. Let it land first.
+  const afterPointer = () => {
+    window.clearTimeout(wait);
+    clearClick();
+    onClick = () => {
+      clearClick();
+      settle();
+    };
+    window.addEventListener('click', onClick);
+    wait = window.setTimeout(settle, 500);
+  };
+
+  window.addEventListener('pointerup', afterPointer);
+  window.addEventListener('pointercancel', afterPointer);
+  // A keyboard blur (Tab) has no pointer. A missed resize must not leave the card large forever.
+  wait = window.setTimeout(settle, 500);
+  giveUp = window.setTimeout(() => finish(true), 4000);
+
+  return () => finish(false);
+}
+
 /**
  * The card, with a box the signer places by tapping or dragging and then types into.
  * The box can be moved, turned and resized before or after typing. A change that would
@@ -142,6 +225,9 @@ export default function Placement({
   const [lineTick, setLineTick] = useState(0);
   const [preview, setPreview] = useState<Geometry | null>(null);
   const [writing, setWriting] = useState(false);
+  // The visible height before the keyboard opened. Compared after blur to see if it is still up.
+  const openHeight = useRef(0);
+  const cancelHold = useRef<(() => void) | null>(null);
   const fontClass = fontFamilyMap[fontFamily] ?? '';
   const fontsVersion = useFontsVersion();
   const obstacles = useMemo(() => others.map((message) => message.box), [others]);
@@ -300,15 +386,40 @@ export default function Placement({
 
   useEffect(() => {
     const viewport = window.visualViewport;
-    if (!viewport) return;
     const onResize = () => {
-      if (document.activeElement === inputRef.current) {
-        inputRef.current?.scrollIntoView({ block: 'center', inline: 'nearest' });
+      const field = inputRef.current;
+      if (document.activeElement === field) {
+        field?.scrollIntoView({ block: 'center', inline: 'nearest' });
+        return;
       }
+      openHeight.current = Math.max(openHeight.current, visibleHeight());
     };
-    viewport.addEventListener('resize', onResize);
-    return () => viewport.removeEventListener('resize', onResize);
+    onResize();
+    viewport?.addEventListener('resize', onResize);
+    window.addEventListener('resize', onResize);
+    return () => {
+      viewport?.removeEventListener('resize', onResize);
+      window.removeEventListener('resize', onResize);
+      cancelHold.current?.();
+      cancelHold.current = null;
+    };
   }, []);
+
+  const onEditorFocus = () => {
+    cancelHold.current?.();
+    cancelHold.current = null;
+    openHeight.current = Math.max(openHeight.current, visibleHeight());
+    setWriting(true);
+  };
+
+  const onEditorBlur = () => {
+    cancelHold.current?.();
+    const field = inputRef.current;
+    cancelHold.current = holdLargeCard(openHeight.current, field, () => {
+      cancelHold.current = null;
+      setWriting(false);
+    });
+  };
 
   const clientToFraction = (clientX: number, clientY: number) => {
     const rect = surfaceRef.current?.getBoundingClientRect();
@@ -587,8 +698,8 @@ export default function Placement({
                 onPointerMove: onEditorPointerMove,
                 onPointerUp: finishPointer,
                 onPointerCancel: finishPointer,
-                onFocus: () => setWriting(true),
-                onBlur: () => setWriting(false),
+                onFocus: onEditorFocus,
+                onBlur: onEditorBlur,
               }}
             >
               <span className={`${styles.handle} ${styles.rotateHandle}`} aria-hidden {...rotate} {...pointerEnd} />

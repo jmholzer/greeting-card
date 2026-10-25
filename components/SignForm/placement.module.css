@@ -209,7 +209,7 @@
     font-variant-numeric: tabular-nums;
 }
 
-/* While the field is focused, size the card from the large viewport so an on-screen keyboard cannot squash it. */
+/* Size the card from the large viewport while the keyboard is up, including just after the field blurs. */
 .writing .card {
     width: min(92vw, calc((100lvh - 270px) * 1.41), 720px);
 }
