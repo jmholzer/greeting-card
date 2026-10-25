@@ -152,12 +152,40 @@
     outline-offset: -2px;
 }
 
+.actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.cancelLink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 52px;
+    padding: 0 22px;
+    border: 2px solid #27221F;
+    border-radius: 999px;
+    background: #fff;
+    color: #27221F;
+    font-size: 18px;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.cancelLink:focus-visible {
+    outline: 3px solid #27221F;
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px #fff;
+}
+
 .submitButton {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
-    margin-top: 12px;
     padding: 14px 32px;
     min-width: 160px;
     min-height: 52px;

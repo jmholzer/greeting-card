@@ -2,13 +2,14 @@ import { createHash } from 'crypto';
 import prisma from '@/lib/prisma';
 import {
   RATE_LIMIT_ADMIN_MAX,
+  RATE_LIMIT_EDIT_MAX,
   RATE_LIMIT_INVALID_MAX,
   RATE_LIMIT_MAX,
   RATE_LIMIT_UNKNOWN_FACTOR,
   RATE_LIMIT_WINDOW_SECONDS,
 } from '@/lib/config';
 
-export type RateLimitBucket = 'message' | 'invalid' | 'admin';
+export type RateLimitBucket = 'message' | 'invalid' | 'admin' | 'edit';
 
 export interface RateLimitResult {
   limited: boolean;
@@ -21,6 +22,7 @@ const LIMITS: Record<RateLimitBucket, number> = {
   message: RATE_LIMIT_MAX,
   invalid: RATE_LIMIT_INVALID_MAX,
   admin: RATE_LIMIT_ADMIN_MAX,
+  edit: RATE_LIMIT_EDIT_MAX,
 };
 
 function firstValue(value: string | null): string | null {

@@ -15,6 +15,7 @@ model Message {
   text      String
   fontFamily String
   requestId String? @unique
+  editTokenHash String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
