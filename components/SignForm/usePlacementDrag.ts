@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent, RefObject } from 'react';
 
 import {
@@ -53,6 +53,10 @@ export function usePlacementDrag(options: Options) {
   const optionsRef = useRef(options);
   const boxRef = useRef(options.box);
   const dragRef = useRef<Drag | null>(null);
+  // True from pointer down until the gesture ends. Auto-grow waits, so a drag is not resized mid-move.
+  const dragging = useRef(false);
+  const stopListen = useRef<(() => void) | null>(null);
+  const [gestureTick, setGestureTick] = useState(0);
 
   useEffect(() => {
     optionsRef.current = options;
@@ -77,26 +81,49 @@ export function usePlacementDrag(options: Options) {
     return false;
   }, []);
 
+  const endDrag = useCallback((pointerId: number) => {
+    if (dragRef.current?.pointerId !== pointerId) return;
+    stopListen.current?.();
+    stopListen.current = null;
+    dragRef.current = null;
+    dragging.current = false;
+    setGestureTick((tick) => tick + 1);
+  }, []);
+
+  const startGesture = useCallback((kind: Kind, pointerId: number, x: number, y: number, focus: boolean) => {
+    if (optionsRef.current.disabled) return;
+    stopListen.current?.();
+    dragRef.current = { kind, pointerId, startX: x, startY: y, start: boxRef.current };
+    dragging.current = true;
+    // Capture can fail for a drag that starts in the text field. pointerup then lands on
+    // whatever is under the cursor, so listen on the window and always clear the drag.
+    const finish = (event: Event) => {
+      if ((event as globalThis.PointerEvent).pointerId !== pointerId) return;
+      endDrag(pointerId);
+    };
+    window.addEventListener('pointerup', finish, true);
+    window.addEventListener('pointercancel', finish, true);
+    stopListen.current = () => {
+      window.removeEventListener('pointerup', finish, true);
+      window.removeEventListener('pointercancel', finish, true);
+    };
+    if (focus) optionsRef.current.focusTarget.current?.focus({ preventScroll: true });
+  }, [endDrag]);
+
   const begin = useCallback((kind: Kind, event: PointerEvent<HTMLElement>) => {
     if (optionsRef.current.disabled || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.stopPropagation();
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      kind,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      start: boxRef.current,
-    };
-    optionsRef.current.focusTarget.current?.focus({ preventScroll: true });
-  }, []);
+    startGesture(kind, event.pointerId, event.clientX, event.clientY, true);
+  }, [startGesture]);
 
   const onPointerMove = useCallback(
     (event: PointerEvent<HTMLElement>) => {
       const drag = dragRef.current;
       const rect = optionsRef.current.surface.current?.getBoundingClientRect();
       if (!drag || drag.pointerId !== event.pointerId || !rect) return;
+      event.preventDefault();
       const current = boxRef.current;
 
       if (drag.kind === 'move') {
@@ -138,11 +165,15 @@ export function usePlacementDrag(options: Options) {
   );
 
   const onPointerEnd = useCallback((event: PointerEvent<HTMLElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
-    dragRef.current = null;
+    if (dragRef.current?.pointerId === event.pointerId) endDrag(event.pointerId);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+  }, [endDrag]);
+
+  useEffect(() => () => {
+    stopListen.current?.();
+    dragging.current = false;
   }, []);
 
   const downMove = useCallback((event: PointerEvent<HTMLElement>) => begin('move', event), [begin]);
@@ -152,6 +183,8 @@ export function usePlacementDrag(options: Options) {
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
       if (optionsRef.current.disabled || !event.key.startsWith('Arrow')) return;
+      // Arrow keys inside the text box move the caret. They move the box only when the box itself is selected.
+      if (event.target !== event.currentTarget) return;
       event.preventDefault();
       const step = event.shiftKey ? KEY_STEP_LARGE : KEY_STEP;
       const current = boxRef.current;
@@ -165,9 +198,14 @@ export function usePlacementDrag(options: Options) {
   const shared = { onPointerMove, onPointerUp: onPointerEnd, onPointerCancel: onPointerEnd };
   return {
     apply,
+    startGesture,
+    onPointerMove,
+    onPointerEnd,
     onKeyDown,
     move: { ...shared, onPointerDown: downMove },
     rotate: { ...shared, onPointerDown: downRotate },
     resize: { ...shared, onPointerDown: downResize },
+    dragging,
+    gestureTick,
   };
 }
