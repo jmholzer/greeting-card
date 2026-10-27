@@ -26,7 +26,7 @@ const BLOCKED_NOTICES: Partial<Record<GeometryProblem, string>> = {
   overlap: BLOCKED_NOTICE,
 };
 const HELP =
-  'Drag your message where you want it. Turn it with the round handle and resize it with the square one.';
+  'Drag your message where you want it. Turn it with the round handle and resize it with the square one. You can also use the sliders, or select the message and use the arrow keys. Hold Shift for bigger steps.';
 const NOTICE_MS = 2500;
 
 interface PlacementProps {
@@ -212,15 +212,14 @@ export default function Placement({
       </div>
 
       <div className={styles.side}>
-        <p id="placement-help" className={styles.help} aria-live="polite">
-          {blocked || notice || HELP}
+        <p id="placement-help" className={styles.srOnly}>
+          {HELP}
+        </p>
+        <p className={styles.help} aria-live="polite">
+          {blocked || notice}
         </p>
 
-        <details className={styles.fineTune}>
-          <summary>Adjust with sliders or the arrow keys</summary>
-          <p className={styles.fineTuneHint}>
-            Or select the message on the card and use the arrow keys. Hold Shift for bigger steps.
-          </p>
+        <div className={styles.fineTune}>
           {slider('place-x', 'Left to right', box.x * 100, 0, 100, 'percent from the left', (b, v) =>
             clampInside({ ...b, x: v / 100 }),
           )}
@@ -262,7 +261,7 @@ export default function Placement({
               return clampInside({ ...b, width, height });
             },
           )}
-        </details>
+        </div>
 
         {actions}
       </div>

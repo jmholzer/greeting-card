@@ -124,38 +124,45 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .help {
     margin: 0;
-    min-height: 2.6em;
     font-size: 15px;
     line-height: 1.3;
     text-align: center;
+}
+
+/* Still in the page while empty, so a screen reader hears the text when it appears. display: none would drop the live region. */
+.help:empty {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 .fineTune {
     font-size: 15px;
 }
 
-.fineTune summary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    cursor: pointer;
-    font-weight: 600;
-    border-radius: 8px;
-}
-
-.fineTune summary:focus-visible,
 .sliderRow input:focus-visible {
     outline: 3px solid #27221F;
     outline-offset: 2px;
-}
-
-.fineTuneHint {
-    margin: 0 0 4px;
-    font-size: 14px;
-    text-align: center;
 }
 
 .sliderRow {
