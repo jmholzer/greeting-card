@@ -288,6 +288,23 @@ export function textLimits(text: string): TextLimits | null {
   return { minWidth, minHeight, minArea };
 }
 
+/**
+ * A slightly larger box in the same place, grown towards the size this text needs.
+ * The width a long word needs is kept, and the height gives way so the area stays
+ * within the limit. Returns null when the box cannot grow without breaking that limit.
+ */
+export function growBox(box: Geometry, limits: TextLimits): Geometry | null {
+  const width = Math.min(1, Math.max(box.width * 1.15, limits.minWidth));
+  let height = Math.min(1, Math.max(box.height * 1.15, MIN_BOX_HEIGHT, limits.minArea / width));
+  if (width * height > MAX_BOX_AREA_EDITOR) height = Math.min(1, MAX_BOX_AREA_EDITOR / width);
+  if (height < MIN_BOX_HEIGHT - EPSILON || width * height > MAX_BOX_AREA + EPSILON) return null;
+  const next = clampInside({ ...box, width, height });
+  const same = (['x', 'y', 'width', 'height', 'rotation'] as const).every(
+    (key) => Math.abs(next[key] - box[key]) <= 5e-5,
+  );
+  return same ? null : next;
+}
+
 /** A size that suits the length of the text, in proportions a signature fits well. */
 export function defaultSize(textLength: number): { width: number; height: number } {
   const area = clamp(0.02 + textLength * 0.0006, 0.02, 0.058);

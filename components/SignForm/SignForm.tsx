@@ -6,7 +6,7 @@ import { useFormik } from 'formik';
 import Link from 'next/link';
 import { fontFamilyMap } from '@/app/fonts';
 import { ALLOWED_FONTS, MAX_MESSAGE_LENGTH, MAX_MESSAGE_LINES } from '@/lib/config';
-import { findFreeSpot, textLimits } from '@/lib/geometry';
+import { checkGeometry, findFreeSpot, textLimits } from '@/lib/geometry';
 import type { Geometry } from '@/lib/geometry';
 import { sanitizeText } from '@/lib/validation';
 import FontPicker from '@/components/SignForm/FontPicker';
@@ -258,6 +258,9 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
   const isEmpty = cleanedText === '';
   const tooManyLines = cleanedText.split('\n').length > MAX_MESSAGE_LINES;
   const textTooBig = cleanedText !== '' && textLimits(cleanedText) === null;
+  // The text could fit a larger box, but this one is below the size the server accepts.
+  const boxTooSmall =
+    box !== null && cleanedText !== '' && checkGeometry(box, [], cleanedText) === 'small';
   const failed = formik.status === 'failure';
   const errorText = errorMessage || 'Failed to send message. Please try again.';
   const formVisible = !editing || (ownedReady && Boolean(editToken));
@@ -344,7 +347,7 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
 
   if (!formVisible) return <div className={styles.container} />;
 
-  const sendBlocked = !box || isEmpty || tooManyLines || textTooBig;
+  const sendBlocked = !box || isEmpty || tooManyLines || textTooBig || boxTooSmall;
 
   return (
     <form
@@ -400,7 +403,7 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
                 disabled={submitting}
               />
             </div>
-            {textTooBig && (
+            {(textTooBig || boxTooSmall) && (
               <p className={styles.failureMessage} role="status">
                 The message is too small to read.
               </p>
@@ -410,7 +413,7 @@ export default function SignForm({ isFull = false, messages = [], editing }: Sig
                 Please use at most {MAX_MESSAGE_LINES} lines.
               </p>
             )}
-            {failed && !submitting && !tooManyLines && !textTooBig && (
+            {failed && !submitting && !tooManyLines && !textTooBig && !boxTooSmall && (
               <p id="message-error" className={styles.failureMessage} role="alert">
                 {errorText}
               </p>

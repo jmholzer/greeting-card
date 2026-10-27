@@ -16,6 +16,7 @@ import {
   defaultSize,
   findFreeSpot,
   GEOMETRY_MESSAGES,
+  growBox,
   MAX_BOX_AREA_EDITOR,
   MAX_ROTATION,
   MIN_BOX_HEIGHT,
@@ -23,7 +24,7 @@ import {
   roundGeometry,
   textLimits,
 } from '@/lib/geometry';
-import type { Geometry, GeometryProblem, TextLimits } from '@/lib/geometry';
+import type { Geometry, GeometryProblem } from '@/lib/geometry';
 import { sanitizeText } from '@/lib/validation';
 import { usePlacementDrag } from '@/components/SignForm/usePlacementDrag';
 import type { Message } from '@/utils/messages';
@@ -75,27 +76,6 @@ interface SurfaceGesture {
 
 function changed(a: Geometry, b: Geometry): boolean {
   return (['x', 'y', 'width', 'height', 'rotation'] as const).some((key) => Math.abs(a[key] - b[key]) > 5e-5);
-}
-
-/** A larger box in the same place, grown towards the size this text needs. Null when it cannot grow. */
-function enlarge(box: Geometry, limits: TextLimits): Geometry | null {
-  const width = Math.min(1, Math.max(box.width * 1.15, limits.minWidth));
-  const height = Math.min(1, Math.max(box.height * 1.15, limits.minHeight, limits.minArea / width));
-  const sized = clampSize(width, height);
-  let next = clampInside({
-    ...box,
-    width: Math.max(sized.width, Math.min(width, limits.minWidth)),
-    height: Math.max(sized.height, limits.minHeight),
-  });
-  if (next.width + 1e-6 < limits.minWidth || next.width * next.height + 1e-6 < limits.minArea) {
-    const fittedWidth = Math.min(1, Math.max(limits.minWidth, next.width));
-    const fittedHeight = Math.min(
-      MAX_BOX_AREA_EDITOR / fittedWidth,
-      Math.max(limits.minHeight, limits.minArea / fittedWidth, next.height),
-    );
-    next = clampInside({ ...box, width: fittedWidth, height: fittedHeight });
-  }
-  return changed(next, box) ? next : null;
 }
 
 /** Keeps at most four lines and the character limit. Extra lines are reported so the form can say so. */
@@ -298,8 +278,9 @@ export default function Placement({
         const problem = checkGeometry(next) ?? checkGeometry(print, obstacles, cleaned);
         if (!problem) return { box: roundGeometry(next), problem: null };
         if (problem !== 'small' || !limits) return { box: next, problem };
-        const bigger = enlarge(next, limits);
-        if (!bigger) return { box: next, problem };
+        const bigger = growBox(next, limits);
+        // An over-area growth would stop the search on the next pass, so keep the legal box.
+        if (!bigger || checkGeometry(bigger) === 'area') return { box: next, problem };
         next = bigger;
       }
       return { box: next, problem: 'small' };
@@ -345,7 +326,18 @@ export default function Placement({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surface, box, text, fontClass, fontsVersion]);
 
-  const { apply, startGesture, onPointerMove, onPointerEnd, onKeyDown, move, rotate, resize } = usePlacementDrag({
+  const {
+    apply,
+    startGesture,
+    onPointerMove,
+    onPointerEnd,
+    onKeyDown,
+    move,
+    rotate,
+    resize,
+    dragging,
+    gestureTick,
+  } = usePlacementDrag({
     surface: surfaceRef,
     focusTarget: draftRef,
     box: box ?? FALLBACK_BOX,
@@ -362,8 +354,11 @@ export default function Placement({
     onPointerEnd(event);
   };
 
-  // Moving the box does not change whether the text fits, so this follows the size only.
-  const boxSizeKey = box ? `${box.width.toFixed(4)}x${box.height.toFixed(4)}` : '';
+  // Position and rotation matter: a neighbour or the card edge can be what stopped the box growing.
+  // A drag updates the box on every move, so wait until the finger is up and then run once more.
+  const boxPlaceKey = box
+    ? `${box.x.toFixed(4)},${box.y.toFixed(4)},${box.width.toFixed(4)}x${box.height.toFixed(4)},${box.rotation.toFixed(2)}`
+    : '';
   useEffect(() => {
     const current = boxRef.current;
     if (!current || disabled) return;
@@ -372,15 +367,16 @@ export default function Placement({
       growWarned.current = '';
       return;
     }
+    if (dragging.current) return;
     let cancelled = false;
     void (async () => {
       // Wait for the real font, or a fallback measurement would grow a box that already fits.
       await whenFontReady(cleaned, fontClass);
-      if (cancelled || surfaceSize().width <= 0) return;
+      if (cancelled || dragging.current || surfaceSize().width <= 0) return;
       const latest = boxRef.current;
       if (!latest) return;
       const fitted = fitBox(latest, text);
-      if (cancelled) return;
+      if (cancelled || dragging.current) return;
       if (!fitted.problem) {
         growWarned.current = '';
         if (changed(fitted.box, latest)) onChange(fitted.box);
@@ -394,7 +390,19 @@ export default function Placement({
     return () => {
       cancelled = true;
     };
-  }, [boxSizeKey, text, disabled, fitBox, onChange, fontsVersion, fontClass, surfaceSize, surface]);
+  }, [
+    boxPlaceKey,
+    gestureTick,
+    dragging,
+    text,
+    disabled,
+    fitBox,
+    onChange,
+    fontsVersion,
+    fontClass,
+    surfaceSize,
+    surface,
+  ]);
 
   useEffect(() => {
     if (!blocked) return;

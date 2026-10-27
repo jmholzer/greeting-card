@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent, RefObject } from 'react';
 
 import {
@@ -53,6 +53,9 @@ export function usePlacementDrag(options: Options) {
   const optionsRef = useRef(options);
   const boxRef = useRef(options.box);
   const dragRef = useRef<Drag | null>(null);
+  // True from pointer down until the gesture ends. Auto-grow waits, so a drag is not resized mid-move.
+  const dragging = useRef(false);
+  const [gestureTick, setGestureTick] = useState(0);
 
   useEffect(() => {
     optionsRef.current = options;
@@ -80,6 +83,7 @@ export function usePlacementDrag(options: Options) {
   const startGesture = useCallback((kind: Kind, pointerId: number, x: number, y: number, focus: boolean) => {
     if (optionsRef.current.disabled) return;
     dragRef.current = { kind, pointerId, startX: x, startY: y, start: boxRef.current };
+    dragging.current = true;
     if (focus) optionsRef.current.focusTarget.current?.focus({ preventScroll: true });
   }, []);
 
@@ -140,6 +144,8 @@ export function usePlacementDrag(options: Options) {
   const onPointerEnd = useCallback((event: PointerEvent<HTMLElement>) => {
     if (dragRef.current?.pointerId !== event.pointerId) return;
     dragRef.current = null;
+    dragging.current = false;
+    setGestureTick((tick) => tick + 1);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -174,5 +180,7 @@ export function usePlacementDrag(options: Options) {
     move: { ...shared, onPointerDown: downMove },
     rotate: { ...shared, onPointerDown: downRotate },
     resize: { ...shared, onPointerDown: downResize },
+    dragging,
+    gestureTick,
   };
 }
