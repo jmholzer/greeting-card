@@ -55,6 +55,7 @@ export function usePlacementDrag(options: Options) {
   const dragRef = useRef<Drag | null>(null);
   // True from pointer down until the gesture ends. Auto-grow waits, so a drag is not resized mid-move.
   const dragging = useRef(false);
+  const stopListen = useRef<(() => void) | null>(null);
   const [gestureTick, setGestureTick] = useState(0);
 
   useEffect(() => {
@@ -80,12 +81,34 @@ export function usePlacementDrag(options: Options) {
     return false;
   }, []);
 
+  const endDrag = useCallback((pointerId: number) => {
+    if (dragRef.current?.pointerId !== pointerId) return;
+    stopListen.current?.();
+    stopListen.current = null;
+    dragRef.current = null;
+    dragging.current = false;
+    setGestureTick((tick) => tick + 1);
+  }, []);
+
   const startGesture = useCallback((kind: Kind, pointerId: number, x: number, y: number, focus: boolean) => {
     if (optionsRef.current.disabled) return;
+    stopListen.current?.();
     dragRef.current = { kind, pointerId, startX: x, startY: y, start: boxRef.current };
     dragging.current = true;
+    // Capture can fail for a drag that starts in the text field. pointerup then lands on
+    // whatever is under the cursor, so listen on the window and always clear the drag.
+    const finish = (event: Event) => {
+      if ((event as globalThis.PointerEvent).pointerId !== pointerId) return;
+      endDrag(pointerId);
+    };
+    window.addEventListener('pointerup', finish, true);
+    window.addEventListener('pointercancel', finish, true);
+    stopListen.current = () => {
+      window.removeEventListener('pointerup', finish, true);
+      window.removeEventListener('pointercancel', finish, true);
+    };
     if (focus) optionsRef.current.focusTarget.current?.focus({ preventScroll: true });
-  }, []);
+  }, [endDrag]);
 
   const begin = useCallback((kind: Kind, event: PointerEvent<HTMLElement>) => {
     if (optionsRef.current.disabled || (event.pointerType === 'mouse' && event.button !== 0)) return;
@@ -142,13 +165,15 @@ export function usePlacementDrag(options: Options) {
   );
 
   const onPointerEnd = useCallback((event: PointerEvent<HTMLElement>) => {
-    if (dragRef.current?.pointerId !== event.pointerId) return;
-    dragRef.current = null;
-    dragging.current = false;
-    setGestureTick((tick) => tick + 1);
+    if (dragRef.current?.pointerId === event.pointerId) endDrag(event.pointerId);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+  }, [endDrag]);
+
+  useEffect(() => () => {
+    stopListen.current?.();
+    dragging.current = false;
   }, []);
 
   const downMove = useCallback((event: PointerEvent<HTMLElement>) => begin('move', event), [begin]);
