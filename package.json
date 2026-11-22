@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "postinstall": "prisma generate",
     "test": "vitest run --project unit",
+    "test:api": "vitest run --project api",
+    "test:all": "vitest run",
     "test:watch": "vitest --project unit"
   },
   "dependencies": {
