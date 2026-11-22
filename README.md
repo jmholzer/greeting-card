@@ -142,6 +142,21 @@ docker run --name greeting-card-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=
 
 Other useful scripts: `npm run build` (production build), `npm start` (serve the production build) and `npm run lint`.
 
+### Running tests
+
+`npm test` runs the unit tests. They need no database and take a second or so.
+
+The API tests call the route handlers against a real, throwaway Postgres database. Its name must end in `_test`, because every run wipes it. With the Docker container from the start of this section:
+
+```sh
+docker exec greeting-card-db createdb -U postgres greeting_card_test
+export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/greeting_card_test
+npm run test:api   # API tests only
+npm run test:all   # unit and API tests
+```
+
+`.env.test.example` holds the same URL. `npm run test:watch` reruns the unit tests on every save. CI runs the type check, lint and all tests on every push to `main` and every pull request.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ## Self-hosting on Vercel
