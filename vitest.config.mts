@@ -24,9 +24,8 @@ export default defineConfig({
           include: ['tests/api/**/*.test.ts'],
           globalSetup: ['tests/api/globalSetup.ts'],
           setupFiles: ['tests/api/setup.ts'],
-          // The files share one database, so they run one after another in a single process.
-          pool: 'forks',
-          poolOptions: { forks: { singleFork: true } },
+          // The files share one database, so they run one after another.
+          fileParallelism: false,
           hookTimeout: 30000,
         },
       },

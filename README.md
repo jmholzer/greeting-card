@@ -144,7 +144,7 @@ Other useful scripts: `npm run build` (production build), `npm start` (serve the
 
 ### Running tests
 
-`npm test` runs the unit tests. They need no database and take a second or so.
+The tests need Node.js 22.12 or later (Vitest 5 does not run on Node 20). `npm test` runs the unit tests. They need no database and take a second or so.
 
 The API tests call the route handlers against a real, throwaway Postgres database. Its name must end in `_test`, because every run wipes it. With the Docker container from the start of this section:
 
