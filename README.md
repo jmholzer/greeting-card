@@ -100,7 +100,7 @@ There are no accounts. When someone signs, the server returns a random secret on
 
 ## Local development
 
-You need Node.js 20.9 or later and a PostgreSQL database. Any Postgres works; for example, with Docker:
+You need Node.js 22.12 or later and a PostgreSQL database. Any Postgres works; for example, with Docker:
 
 ```sh
 docker run --name greeting-card-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=greeting_card -p 5432:5432 -d postgres:16
