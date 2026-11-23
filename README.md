@@ -100,7 +100,7 @@ There are no accounts. When someone signs, the server returns a random secret on
 
 ## Local development
 
-You need Node.js 20.9 or later and a PostgreSQL database. Any Postgres works; for example, with Docker:
+You need Node.js 22.12 or later and a PostgreSQL database. Any Postgres works; for example, with Docker:
 
 ```sh
 docker run --name greeting-card-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=greeting_card -p 5432:5432 -d postgres:16
@@ -141,6 +141,21 @@ docker run --name greeting-card-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=
 6. Open <http://localhost:3000> to view the card and <http://localhost:3000/sign> to sign it.
 
 Other useful scripts: `npm run build` (production build), `npm start` (serve the production build) and `npm run lint`.
+
+### Running tests
+
+The tests need Node.js 22.12 or later on the 22 line, 24, or 26 and later (the versions Vitest 5 supports; not 20, 23 or 25). `npm test` runs the unit tests. They need no database and take a second or so.
+
+The API tests call the route handlers against a real, throwaway Postgres database. Its name must end in `_test`, because every run wipes it. With the Docker container from the start of this section:
+
+```sh
+docker exec greeting-card-db createdb -U postgres greeting_card_test
+export TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/greeting_card_test
+npm run test:api   # API tests only
+npm run test:all   # unit and API tests
+```
+
+Instead of exporting the variable, you can copy `.env.test.example` to `.env.test` (git-ignored), which the tests read when `TEST_DATABASE_URL` is not set. `npm run test:watch` reruns the unit tests on every save. CI runs the type check, lint and all tests on every push to `main` and every pull request.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
