@@ -40,10 +40,10 @@
     "node": ">=20.9.0"
   },
   "allowScripts": {
-    "prisma@5.22.0": true,
-    "unrs-resolver@1.12.2": true,
-    "@prisma/client@5.22.0": true,
-    "@prisma/engines@5.22.0": true,
+    "prisma": true,
+    "@prisma/client": true,
+    "@prisma/engines": true,
+    "unrs-resolver": true,
     "fsevents": false
   }
 }

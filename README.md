@@ -144,7 +144,7 @@ Other useful scripts: `npm run build` (production build), `npm start` (serve the
 
 ### Running tests
 
-The tests need Node.js 22.12 or later (Vitest 5 does not run on Node 20). `npm test` runs the unit tests. They need no database and take a second or so.
+The tests need Node.js 22.12 or later on the 22 line, 24, or 26 and later (the versions Vitest 5 supports; not 20, 23 or 25). `npm test` runs the unit tests. They need no database and take a second or so.
 
 The API tests call the route handlers against a real, throwaway Postgres database. Its name must end in `_test`, because every run wipes it. With the Docker container from the start of this section:
 
@@ -155,7 +155,7 @@ npm run test:api   # API tests only
 npm run test:all   # unit and API tests
 ```
 
-`.env.test.example` holds the same URL. `npm run test:watch` reruns the unit tests on every save. CI runs the type check, lint and all tests on every push to `main` and every pull request.
+Instead of exporting the variable, you can copy `.env.test.example` to `.env.test` (git-ignored), which the tests read when `TEST_DATABASE_URL` is not set. `npm run test:watch` reruns the unit tests on every save. CI runs the type check, lint and all tests on every push to `main` and every pull request.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
